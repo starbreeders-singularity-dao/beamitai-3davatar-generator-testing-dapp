@@ -1,0 +1,26 @@
+# Stage 1: Build
+FROM node:18-alpine AS build
+
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm install
+
+# Stage 2: Production
+FROM node:18-alpine
+
+WORKDIR /app
+COPY --from=build /app ./
+COPY . .
+
+# Create and switch to a non-root user
+RUN addgroup app && adduser -S app -G app
+USER app
+
+# Use the PORT environment variable set by Google Cloud
+EXPOSE $PORT
+
+# Command to run the app
+CMD ["node", "server.js"]
+
+# Set environment variables
+ENV GCS_BUCKET=fullbody-images

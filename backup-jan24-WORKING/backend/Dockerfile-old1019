@@ -1,0 +1,23 @@
+# Use the official Node.js image from Docker Hub
+FROM node:18-alpine
+
+# Create and set the working directory inside the container
+WORKDIR /app
+
+# Copy package.json and package-lock.json files to the working directory
+COPY package.json package-lock.json ./
+
+# Install all dependencies
+RUN npm install --production
+
+# Copy the entire app to the container
+COPY . .
+
+# Use the PORT environment variable set by Google Cloud
+EXPOSE $PORT
+
+# Command to run the app
+CMD ["node", "server.js"]
+
+
+ENV GCS_BUCKET=fullbody-images

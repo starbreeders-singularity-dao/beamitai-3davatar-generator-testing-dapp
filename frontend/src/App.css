@@ -1,0 +1,287 @@
+/* App.css */
+
+body {
+  background-color: black; /* Main background color */
+  color: white; /* Default text color for contrast */
+  margin: 0;
+  font-family: Arial, sans-serif;
+}
+
+.App-header img {
+  max-width: 250px;
+  margin-left: 20px;
+}
+
+.wallet-button {
+  background-color: #ff00ff; /* Pink color */
+  color: black; /* Black font color */
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.wallet-button:hover {
+  background-color: #cc00cc; /* Darker pink */
+}
+
+.App-content {
+  display: flex;
+  justify-content: center; /* Center the frames */
+  gap: 20px; /* Gap between frames */
+  padding: 20px;
+}
+
+.avatar-selection {
+  flex: 1;
+  max-width: 600px;
+  border: 1px solid #ff00ff;
+  padding: 10px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+}
+
+.avatar-selection > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.selected-nft {
+  max-width: 100%;
+  height: auto;
+  margin-bottom: 20px;  /* Add space between image and button */
+}
+
+.nft-gallery-container {
+  flex: 1;
+  max-width: 900px;
+  border: 1px solid #ff00ff;
+  padding: 10px;
+  border-radius: 8px;
+  background-color: black; /* Change to black */
+}
+
+.nft-gallery {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.nft-item {
+  background-color: black; /* Darker background for contrast */
+  border-radius: 8px;
+  padding: 10px;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  height: 200px; /* Adjust height as needed */
+}
+
+.nft-item img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+
+.nft-item p {
+  margin: 10px 0;
+  color: white; /* White text for contrast */
+}
+
+.nft-button {
+  background-color: #ff00ff; /* Pink color */
+  color: black; /* Black font color */
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.nft-button:hover {
+  background-color: #cc00cc; /* Darker pink */
+}
+
+.pink-text {
+  color: #ff00ff;
+}
+
+.loading-dots {
+  display: inline-block;
+  font-size: 24px;
+  animation: blink 1s infinite step-start;
+  color: #00ffff;  /* Beamit turquoise color */
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.full-body-container {
+  flex: 1;
+  max-width: 900px;
+  border: 1px solid #ff00ff;
+  padding: 10px;
+  border-radius: 8px;
+  background-color: black;
+  display: flex;
+  flex-direction: column;
+}
+
+.full-body-header {
+  margin-bottom: 20px;
+}
+
+.full-body-image {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.full-body-image img {
+  width: 100%;
+  max-width: 600px;  /* Match the width of the left frame */
+  height: auto;
+  border-radius: 8px;
+}
+
+.button-group {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;  /* Center the buttons */
+  margin-top: 10px;
+}
+
+.beam-button {
+  background-color: #ff00ff;
+  color: black;
+  font-weight: bold;
+}
+
+.beam-button:hover {
+  background-color: #cc00cc;
+  transform: scale(1.05);
+  transition: transform 0.2s ease;
+}
+
+.status-message {
+  color: #00ffff;  /* Beamit turquoise color */
+  text-align: center;
+  margin: 10px 0;
+}
+
+.upload-status {
+  text-align: center;
+  margin-top: 10px;
+  color: #00ffff;  /* Changed from pink to turquoise */
+}
+
+.result-container {
+  background-color: #1a1a1a;
+  padding: 20px;
+  border-radius: 10px;
+  margin-top: 20px;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+}
+
+.loading-spinner {
+  border: 8px solid #f3f3f3;
+  border-top: 8px solid #ff1493;
+  border-radius: 50%;
+  width: 60px;
+  height: 60px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.model-viewer-wrapper {
+  width: 100%;
+  height: 400px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f5f5f5;
+}
+
+model-viewer {
+  width: 100%;
+  height: 100%;
+  --poster-color: transparent;
+  --progress-bar-color: #007bff;
+  --progress-bar-height: 5px;
+}
+
+.model-viewer-container {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+model-viewer {
+  width: 100%;
+  height: 400px;
+  background-color: #f5f5f5;
+}
+
+.progress-bar {
+  display: block;
+  width: 100%;
+  height: 3px;
+  max-width: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.update-bar {
+  background: #4CAF50;
+  width: 0%;
+  height: 100%;
+  transition: width 0.3s;
+}
+
+.minter-container {
+    margin: 20px 0;
+    text-align: center;
+}
+
+.mint-button {
+    background-color: #4CAF50;
+    color: white;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s;
+}
+
+.mint-button:hover {
+    background-color: #45a049;
+}
+
+.mint-button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
