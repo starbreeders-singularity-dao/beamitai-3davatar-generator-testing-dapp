@@ -12,6 +12,8 @@ contract 3DNFT is ERC721Enumerable, Ownable {
     constructor() ERC721("YourNFT", "YNFT") {}
 
     function safeMint(address to, uint256 tokenId) public onlyOwner {
+        require(balanceOf(msg.sender)>0.008,"You need tokens to mint!";
+        uint256 currentBalance = balanceOf(msg.sender);
         _safeMint(to, tokenId);
     }
 
@@ -19,7 +21,6 @@ contract 3DNFT is ERC721Enumerable, Ownable {
         _setApprovalForAll(operator, approved);
         emit ApprovalForAll(msg.sender, operator, approved);
     }
-
     function isApprovedForAll(address owner, address operator) public view override returns (bool) {
         return _isApprovedOrOwner(owner, operator);
     }
