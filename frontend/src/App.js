@@ -9,7 +9,7 @@ function App() {
 
   return (
     <div className="App">
-      <h1>Beamit AI NFT Minter Test</h1>
+      <h1>Beamit AI NFT Minter Testnet</h1>
       
       {/* 3D Model Viewer */}
       <div style={{
