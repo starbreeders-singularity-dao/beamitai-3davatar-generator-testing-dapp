@@ -33,10 +33,10 @@ const useNFTs = ( contractAddress: string, userAddress: string) => {
         // Connect to Ethereum provider
         //const provider = new ethers.providers.JsonRpcProvider("https://sepolia-rpc.scroll.io/")
 
-        const provider = new BrowserProvider((window as any).ethereum);
-        await provider.send("eth_requestAccounts", []); // Request wallet access
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
 
-        const contract = new ethers.Contract(contractAddress, abi, provider);
+        const contract = new ethers.Contract(contractAddress, abi, signer);
         const balance = await contract.balanceOf(userAddress);
 
         const nftURIs: string[] = [];

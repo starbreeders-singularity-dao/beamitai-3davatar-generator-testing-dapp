@@ -12,8 +12,53 @@ const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
-  localStorage.getItem("walletAddress") || null
+ // localStorage.getItem("walletAddress") || null
 
+
+ useEffect(() => {
+  const savedAddress = localStorage.getItem("walletAddress");
+  if (savedAddress) {
+    setWalletAddress(savedAddress);
+  }
+}, []);
+
+  // Function to detect wallet switch
+  const addWalletListener = () => {
+    if (window.ethereum) {
+      window.ethereum.on("accountsChanged", (accounts: string[]) => {
+        if (accounts.length > 0) {
+          setWalletAddress(accounts[0]);
+          localStorage.setItem("walletAddress", accounts[0]);
+        } else {
+          setWalletAddress(null);
+          localStorage.removeItem("walletAddress");
+        }
+      });
+    }
+  };
+
+
+  // Function to check if a wallet is already connected
+  const getCurrentWalletConnected = async () => {
+    if (window.ethereum) {
+      try {
+        const accounts = await window.ethereum.request({ method: "eth_accounts" });
+        if (accounts.length > 0) {
+          setWalletAddress(accounts[0]);
+          localStorage.setItem("walletAddress", accounts[0]);
+        }
+      } catch (error) {
+        console.error("Error fetching wallet:", error);
+      }
+    }
+  };
+
+  useEffect(() => {
+    getCurrentWalletConnected();
+    addWalletListener();
+  }, []);
+
+  
   useEffect(() => {
     // Save wallet address in localStorage when updated
     if (walletAddress) {

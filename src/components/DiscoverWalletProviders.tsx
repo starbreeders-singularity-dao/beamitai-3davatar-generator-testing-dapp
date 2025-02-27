@@ -113,6 +113,18 @@ export const DiscoverWalletProviders: React.FC<DiscoverWalletProvidersProps> = (
       if (accounts.length > 0) {
         //setSelectedWallet(accounts[0]);
         setWalletAddress(accounts[0]); 
+        localStorage.setItem("walletAddress", accounts[0]);
+
+        if (window.ethereum) {
+          window.ethereum.on("accountsChanged", (accounts: string[]) => {
+            if (accounts.length > 0) {
+              setWalletAddress(accounts[0]);
+            } else {
+              setWalletAddress(null);
+            }
+          });
+        }
+
         onClose(); // Close modal after connecting
       }
     } catch (error) {
