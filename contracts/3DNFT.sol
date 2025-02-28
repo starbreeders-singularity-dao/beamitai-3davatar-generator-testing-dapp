@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/structs/Counters.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 contract THREEDNFT is ERC721URIStorage, Ownable, ReentrancyGuard {
     using Counters for Counters.Counter;
@@ -39,39 +39,49 @@ contract THREEDNFT is ERC721URIStorage, Ownable, ReentrancyGuard {
     // Constructor initializes the ERC721 token with name "3DNFT" and symbol "3DN"
     constructor() ERC721("AIGenNFT", "3DN") Ownable(msg.sender) {}
 
-    // Mint a single NFT
     function mintAIGenNFT(
-        string memory tokenURI,
-        string memory aiModel,
-        string memory prompt,
-        Blockchain blockchain
-    ) public payable nonReentrant returns (uint256) {
-        require(msg.value >= mintPrice, "Insufficient payment");
-        require(_tokenIds.current() < maxSupply, "Max supply reached");
-        require(walletMints[msg.sender] < maxPerWallet, "Wallet limit reached");
+    string calldata uri,
+    string calldata aiModel,
+    string calldata prompt,
+    Blockchain blockchain
+) public payable nonReentrant returns (uint256) {
+    // Validations
+    require(bytes(uri).length > 0, "URI cannot be empty");
+    require(bytes(prompt).length <= 1000, "Prompt too long");
+    require(msg.value >= mintPrice, "Insufficient payment");
+    require(_tokenIds.current() < maxSupply, "Max supply reached");
+    require(walletMints[msg.sender] < maxPerWallet, "Wallet limit reached");
 
-        _tokenIds.increment();
-        uint256 newTokenId = _tokenIds.current();
+    // Increment counter after validation
+    _tokenIds.increment();
+    uint256 newTokenId = _tokenIds.current();
 
-        // Store metadata with Scroll as default if not specified
-        nftDetails[newTokenId] = NFTMetadata({
-            aiModel: aiModel,
-            prompt: prompt,
-            timestamp: block.timestamp,
-            blockchain: blockchain,
-            isMinted: true
-        });
+    // Store metadata
+    nftDetails[newTokenId] = NFTMetadata({
+        aiModel: aiModel,
+        prompt: prompt,
+        timestamp: block.timestamp,
+        blockchain: blockchain,
+        isMinted: true // Consider removing this field
+    });
 
-        _safeMint(msg.sender, newTokenId);
-        _setTokenURI(newTokenId, tokenURI);
-        walletMints[msg.sender]++;
-
-        emit NFTMinted(newTokenId, msg.sender, tokenURI, blockchain);
-        emit AIMetadataAdded(newTokenId, aiModel, prompt);
-
-        return newTokenId;
+    // Mint NFT
+    _safeMint(msg.sender, newTokenId);
+    _setTokenURI(newTokenId, uri);
+    walletMints[msg.sender]++;
+    
+    // Refund excess payment
+    uint256 refund = msg.value - mintPrice;
+    if (refund > 0) {
+        payable(msg.sender).transfer(refund);
     }
 
+    // Emit events
+    emit NFTMinted(newTokenId, msg.sender, uri, blockchain);
+    emit AIMetadataAdded(newTokenId, aiModel, prompt);
+
+    return newTokenId;
+}
     // Get NFT metadata
     function getNFTDetails(uint256 tokenId) public view returns (NFTMetadata memory) {
         require(_exists(tokenId), "NFT does not exist");
