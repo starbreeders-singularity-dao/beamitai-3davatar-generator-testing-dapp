@@ -115,79 +115,79 @@
 // export default WalletConnect;
 
 
-import { useState } from "react";
-import { useSyncProviders } from "../hooks/useSyncProviders";
-import { formatAddress } from "../utilis/index";
-import { Dialog } from "@headlessui/react";
+// import { useState } from "react";
+// import { useSyncProviders } from "../hooks/useSyncProviders";
+// import { formatAddress } from "../utilis/index";
+// import { Dialog } from "@headlessui/react";
 
-interface EIP6963ProviderDetail {
-  provider: any;
-  info: {
-    uuid: string;
-    name: string;
-    icon: string;
-  };
-}
+// interface EIP6963ProviderDetail {
+//   provider: any;
+//   info: {
+//     uuid: string;
+//     name: string;
+//     icon: string;
+//   };
+// }
 
-export const DiscoverWalletProviders = () => {
-  const [selectedWallet, setSelectedWallet] = useState<EIP6963ProviderDetail | null>(null);
-  const [userAccount, setUserAccount] = useState<string>("");
-  const [isOpen, setIsOpen] = useState<boolean>(false);
+// export const DiscoverWalletProviders = () => {
+//   const [selectedWallet, setSelectedWallet] = useState<EIP6963ProviderDetail | null>(null);
+//   const [userAccount, setUserAccount] = useState<string>("");
+//   const [isOpen, setIsOpen] = useState<boolean>(false);
 
-  const providers: EIP6963ProviderDetail[] = useSyncProviders();
+//   const providers: EIP6963ProviderDetail[] = useSyncProviders();
 
-  const handleConnect = async (providerWithInfo: EIP6963ProviderDetail) => {
-    const accounts = await providerWithInfo.provider
-      .request({ method: "eth_requestAccounts" })
-      .catch(console.error);
+//   const handleConnect = async (providerWithInfo: EIP6963ProviderDetail) => {
+//     const accounts = await providerWithInfo.provider
+//       .request({ method: "eth_requestAccounts" })
+//       .catch(console.error);
 
-    if (accounts?.[0]) {
-      setSelectedWallet(providerWithInfo);
-      setUserAccount(accounts[0]);
-      setIsOpen(false); // Close modal after selection
-    }
-  };
+//     if (accounts?.[0]) {
+//       setSelectedWallet(providerWithInfo);
+//       setUserAccount(accounts[0]);
+//       setIsOpen(false); // Close modal after selection
+//     }
+//   };
 
-  return (
-    <div className="flex flex-col items-center p-4">
-      <button
-        onClick={() => setIsOpen(true)}
-        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-      >
-        Connect Wallet
-      </button>
+//   return (
+//     <div className="flex flex-col items-center p-4">
+//       <button
+//         onClick={() => setIsOpen(true)}
+//         className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+//       >
+//         Connect Wallet
+//       </button>
 
-      <Dialog open={isOpen} onClose={() => setIsOpen(false)} className="relative z-50">
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center">
-          <Dialog.Panel className="bg-white p-6 rounded-xl shadow-lg w-80">
-            <Dialog.Title className="text-lg font-semibold">Select a Wallet</Dialog.Title>
-            <div className="mt-4 grid gap-2">
-              {providers.length > 0 ? (
-                providers.map((provider) => (
-                  <button
-                    key={provider.info.uuid}
-                    onClick={() => handleConnect(provider)}
-                    className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-100 w-full"
-                  >
-                    <img src={provider.info.icon} alt={provider.info.name} className="w-6 h-6" />
-                    <span>{provider.info.name}</span>
-                  </button>
-                ))
-              ) : (
-                <div className="text-center text-gray-500">No Announced Wallet Providers</div>
-              )}
-            </div>
-          </Dialog.Panel>
-        </div>
-      </Dialog>
+//       <Dialog open={isOpen} onClose={() => setIsOpen(false)} className="relative z-50">
+//         <div className="fixed inset-0 bg-black/30 flex items-center justify-center">
+//           <Dialog.Panel className="bg-white p-6 rounded-xl shadow-lg w-80">
+//             <Dialog.Title className="text-lg font-semibold">Select a Wallet</Dialog.Title>
+//             <div className="mt-4 grid gap-2">
+//               {providers.length > 0 ? (
+//                 providers.map((provider) => (
+//                   <button
+//                     key={provider.info.uuid}
+//                     onClick={() => handleConnect(provider)}
+//                     className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-100 w-full"
+//                   >
+//                     <img src={provider.info.icon} alt={provider.info.name} className="w-6 h-6" />
+//                     <span>{provider.info.name}</span>
+//                   </button>
+//                 ))
+//               ) : (
+//                 <div className="text-center text-gray-500">No Announced Wallet Providers</div>
+//               )}
+//             </div>
+//           </Dialog.Panel>
+//         </div>
+//       </Dialog>
 
-      {userAccount && selectedWallet && (
-        <div className="mt-6 p-4 border rounded-lg shadow-md flex flex-col items-center">
-          <img src={selectedWallet.info.icon} alt={selectedWallet.info.name} className="w-10 h-10 mb-2" />
-          <div className="font-semibold">{selectedWallet.info.name}</div>
-          <div className="text-sm text-gray-600">({formatAddress(userAccount)})</div>
-        </div>
-      )}
-    </div>
-  );
-};
+//       {userAccount && selectedWallet && (
+//         <div className="mt-6 p-4 border rounded-lg shadow-md flex flex-col items-center">
+//           <img src={selectedWallet.info.icon} alt={selectedWallet.info.name} className="w-10 h-10 mb-2" />
+//           <div className="font-semibold">{selectedWallet.info.name}</div>
+//           <div className="text-sm text-gray-600">({formatAddress(userAccount)})</div>
+//         </div>
+//       )}
+//     </div>
+//   );
+// };

@@ -1,65 +1,86 @@
 import { useState, useEffect } from "react";
 import { ethers } from "ethers";
-import { BrowserProvider } from "ethers";
-import abi from "../nftabi.json"
+import abi from "../nftabi.json";
+import axios from "axios"; // For Alchemy API calls
 
+const contractAddress = "0x28571421e389f0553b5c261dc33f7b22bbb1b0e3";
+const alchemyApiKey = "gBrRL8GNZB7bQQh-RXdd3W1rAal7R_M8";
+const alchemyBaseUrl = "https://eth-mainnet.g.alchemy.com/v2/";
 
-//const contractAddress = "0x28571421e389f0553b5c261dc33f7b22bbb1b0e3";
+interface NFT {
+  tokenId: string;
+  contractAddress: string;
+  metadata: any;
+  image: string;
+}
 
-const useNFTs = ( contractAddress: string, userAddress: string) => {
-  
-  console.log("Contract Address:", contractAddress);
-  console.log("User Address:", userAddress);
-
-  const [nfts, setNFTs] = useState<string[]>([]);
+const useNFTs = (contractAddress: string, userAddress: string | null) => {
+  const [nfts, setNFTs] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<string>("");
+  const [message, setMessage] = useState<string>("");
+  const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
+  const [signer, setSigner] = useState<ethers.JsonRpcSigner | null>(null);
+  const [userAddr, setUserAddr] = useState<string | null>(userAddress);
 
-  useEffect(() => {
-    if (!contractAddress || !userAddress) return;
 
-    if (!(window as any).ethereum) {
+
+  // Connect Wallet
+  const connectWallet = async () => {
+    if (!window.ethereum) {
       setError("No wallet detected. Please install MetaMask.");
-      setLoading(false);
       return;
     }
-    
+    try {
+      const web3Provider = new ethers.BrowserProvider(window.ethereum);
+      setProvider(web3Provider);
 
-    const fetchNFTs = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+      const signer = await web3Provider.getSigner();
+      setSigner(signer);
+      setUserAddr(await signer.getAddress());
+    } catch (err: any) {
+      console.error("Wallet connection error:", err);
+      setError(err.message);
+    }
+  };
 
-        // Connect to Ethereum provider
-        //const provider = new ethers.providers.JsonRpcProvider("https://sepolia-rpc.scroll.io/")
+  useEffect(() => {
+    connectWallet();
+  }, []);
 
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        const signer = await provider.getSigner();
+  // Fetch NFTs using Alchemy API
+  const fetchNFTs = async () => {
+    if (!userAddress) return;
+    setLoading(true);
+    setError(null);
 
-        const contract = new ethers.Contract(contractAddress, abi, signer);
-        const balance = await contract.balanceOf(userAddress);
+    try {
+      const response = await axios.get(
+        `${alchemyBaseUrl}${alchemyApiKey}/getNFTs?owner=${userAddress}`
+      );
 
-        const nftURIs: string[] = [];
+      const nftData = response.data.ownedNfts.map((nft: any) => ({
+        tokenId: nft.id.tokenId,
+        contractAddress: nft.contract.address,
+        metadata: nft.metadata,
+        image: nft.metadata && nft.metadata.image ? nft.metadata.image.replace("ipfs://", "https://ipfs.io/ipfs/") : "",
+      }));
 
-        for (let i = 0; i < balance; i++) {
-          const tokenId = await contract.tokenOfOwnerByIndex(userAddress, i);
-          const tokenURI = await contract.tokenURI(tokenId);
-          nftURIs.push(tokenURI);
-        }
+      setNFTs(nftData);
+    } catch (err: any) {
+      console.error("Error fetching NFTs:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        setNFTs(nftURIs);
-      } catch (err: any) {
-        console.error("Error fetching NFTs:", err);
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
+  useEffect(() => {
     fetchNFTs();
-  }, [contractAddress, userAddress]);
+  }, [userAddress]);
 
-  return { nfts, loading, error };
+  return { nfts, loading, error, status, message, setMessage, connectWallet, userAddress };
 };
 
 export default useNFTs;
