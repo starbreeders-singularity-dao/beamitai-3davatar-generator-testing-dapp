@@ -1,12 +1,23 @@
-// scripts/deploy.js
+
+const hre = require("hardhat");
+
 async function main() {
-    const 3DNFT = await ethers.getContractFactory("3DNFT");
-    const nftContract = await 3DNFT.deploy();
-    await nftContract.waitForDeployment();
-    console.log("3DNFT deployed to:", await nftContract.getAddress());
+  // Get the contract factory through hardhat's ethers
+  const ThreeDNFT = await hre.ethers.getContractFactory("ThreeDNFT");
+  
+  // Deploy the contract
+  const nftContract = await ThreeDNFT.deploy();
+  
+  // Wait for deployment to finish - updated for Hardhat v2.19+
+  await nftContract.waitForDeployment();
+  
+  // Log the deployed contract address - updated for Hardhat v2.19+
+  console.log("ThreeDNFT deployed to:", await nftContract.getAddress());
 }
 
-main().catch((error) => {
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
     console.error(error);
-    process.exitCode = 1;
-});
+    process.exit(1);
+  });
