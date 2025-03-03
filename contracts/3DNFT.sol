@@ -13,7 +13,7 @@ contract ThreeDNFT is ERC721URIStorage, Ownable, ReentrancyGuard {
     Counters.Counter private _tokenIds;
 
     // Enum to represent supported blockchains
-    enum Blockchain { Scroll, Binance, Solana, Polygon, Celestia }
+    enum Blockchain { Scroll, Binance, Solana, Polygon, Celestia,Ethereum }
 
     // Struct to store NFT metadata
     struct NFTMetadata {
