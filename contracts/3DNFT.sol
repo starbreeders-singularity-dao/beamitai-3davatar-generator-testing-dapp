@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: MIT
+//Scroll Sepolia blockchain Contract address:0x1dA04B1BC176F72E7D013385cDb23C34e11FB664
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/structs/Counters.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-contract THREEDNFT is ERC721URIStorage, Ownable, ReentrancyGuard {
+contract ThreeDNFT is ERC721URIStorage, Ownable, ReentrancyGuard {
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
 
@@ -24,7 +25,7 @@ contract THREEDNFT is ERC721URIStorage, Ownable, ReentrancyGuard {
     }
 
     // Minting parameters
-    uint256 public mintPrice = 0.01 ether; // Cost to mint an NFT
+    uint256 public mintPrice = 0.001 ether; // Adjusted to a more standard value
     uint256 public maxSupply = 10000;      // Total supply cap
     uint256 public maxPerWallet = 10;      // Max NFTs per wallet
 
@@ -37,54 +38,47 @@ contract THREEDNFT is ERC721URIStorage, Ownable, ReentrancyGuard {
     event AIMetadataAdded(uint256 indexed tokenId, string aiModel, string prompt);
 
     // Constructor initializes the ERC721 token with name "3DNFT" and symbol "3DN"
-    constructor() ERC721("AIGenNFT", "3DN") Ownable(msg.sender) {}
+    constructor() payable ERC721("AIGenNFT", "3DN") Ownable(msg.sender) {}
 
+    // Allow contract to receive ETH directly
+    receive() external payable {}
+
+    // Mint a single NFT
     function mintAIGenNFT(
-    string calldata uri,
-    string calldata aiModel,
-    string calldata prompt,
-    Blockchain blockchain
-) public payable nonReentrant returns (uint256) {
-    // Validations
-    require(bytes(uri).length > 0, "URI cannot be empty");
-    require(bytes(prompt).length <= 1000, "Prompt too long");
-    require(msg.value >= mintPrice, "Insufficient payment");
-    require(_tokenIds.current() < maxSupply, "Max supply reached");
-    require(walletMints[msg.sender] < maxPerWallet, "Wallet limit reached");
+        string memory uri,
+        string memory aiModel,
+        string memory prompt,
+        Blockchain blockchain
+    ) public payable nonReentrant returns (uint256) {
+        require(msg.value >= mintPrice, "Insufficient payment"); 
+        require(_tokenIds.current() < maxSupply, "Max supply reached");
+        require(walletMints[msg.sender] < maxPerWallet, "Wallet limit reached");
 
-    // Increment counter after validation
-    _tokenIds.increment();
-    uint256 newTokenId = _tokenIds.current();
+        _tokenIds.increment();
+        uint256 newTokenId = _tokenIds.current();
 
-    // Store metadata
-    nftDetails[newTokenId] = NFTMetadata({
-        aiModel: aiModel,
-        prompt: prompt,
-        timestamp: block.timestamp,
-        blockchain: blockchain,
-        isMinted: true // Consider removing this field
-    });
+        // Store metadata with Scroll as default if not specified
+        nftDetails[newTokenId] = NFTMetadata({
+            aiModel: aiModel,
+            prompt: prompt,
+            timestamp: block.timestamp,
+            blockchain: blockchain,
+            isMinted: true
+        });
 
-    // Mint NFT
-    _safeMint(msg.sender, newTokenId);
-    _setTokenURI(newTokenId, uri);
-    walletMints[msg.sender]++;
-    
-    // Refund excess payment
-    uint256 refund = msg.value - mintPrice;
-    if (refund > 0) {
-        payable(msg.sender).transfer(refund);
+        _safeMint(msg.sender, newTokenId);
+        _setTokenURI(newTokenId, uri);
+        walletMints[msg.sender]++;
+
+        emit NFTMinted(newTokenId, msg.sender, uri, blockchain);
+        emit AIMetadataAdded(newTokenId, aiModel, prompt);
+
+        return newTokenId;
     }
 
-    // Emit events
-    emit NFTMinted(newTokenId, msg.sender, uri, blockchain);
-    emit AIMetadataAdded(newTokenId, aiModel, prompt);
-
-    return newTokenId;
-}
     // Get NFT metadata
     function getNFTDetails(uint256 tokenId) public view returns (NFTMetadata memory) {
-        require(_exists(tokenId), "NFT does not exist");
+        require(_ownerOf(tokenId) != address(0), "NFT does not exist");
         return nftDetails[tokenId];
     }
 
@@ -96,6 +90,7 @@ contract THREEDNFT is ERC721URIStorage, Ownable, ReentrancyGuard {
     // Withdraw contract balance (for owner)
     function withdraw() external onlyOwner {
         uint256 balance = address(this).balance;
+        require(balance > 0, "No balance to withdraw");
         payable(owner()).transfer(balance);
     }
 
