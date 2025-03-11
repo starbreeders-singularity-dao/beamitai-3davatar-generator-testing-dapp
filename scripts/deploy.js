@@ -11,8 +11,12 @@ async function main() {
   // Wait for deployment to finish - updated for Hardhat v2.19+
   await nftContract.waitForDeployment();
   
-  // Log the deployed contract address - updated for Hardhat v2.19+
-  console.log("ThreeDNFT deployed to:", await nftContract.getAddress());
+  const contractAddress = await nftContract.getAddress();
+  console.log("\n=================================================");
+  console.log(`ThreeDNFT deployed to: ${contractAddress}`);
+  console.log("=================================================");
+  console.log("Copy this address and update it in frontend/src/utils/nftUtils.js");
+  console.log("=================================================\n");
 }
 
 main()
