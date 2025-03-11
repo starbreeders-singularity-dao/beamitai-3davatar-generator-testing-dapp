@@ -580,7 +580,55 @@ app.post('/api/cleanup', async (req, res) => {
     );
     
     console.log(`Found ${filesToDelete.length} files to delete in cloud storage`);
+    // Endpoint to get 3D model by NFT ID
+app.get('/api/models/:tokenId', async (req, res) => {
+  const tokenId = req.params.tokenId;
+  console.log(`Retrieving 3D model for NFT ID: ${tokenId}`);
+
+  try {
+    // Set appropriate headers for GLB files
+    res.setHeader('Content-Type', 'model/gltf-binary');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+
+    // Check if we have a local file first
+    const localFilePath = path.join(__dirname, '3dmesh', `nft-${tokenId}.glb`);
+    if (fs.existsSync(localFilePath)) {
+      console.log(`Serving local GLB file: ${localFilePath}`);
+      return fs.createReadStream(localFilePath).pipe(res);
+    }
+
+    // If not found locally, check Google Cloud Storage
+    console.log('File not found locally, checking Google Cloud Storage...');
+    const bucket = storage.bucket('fullbody-images');
+    const [files] = await bucket.getFiles({ prefix: 'dg-results/' });
     
+    // Look for file matching the token ID
+    const glbFile = files.find(file => 
+      file.name.endsWith('.glb') && file.name.includes(`nft-${tokenId}`)
+    );
+
+    if (!glbFile) {
+      // If no specific file found, return the latest GLB file (temporary fallback)
+      const latestGlbFile = files
+        .filter(file => file.name.endsWith('.glb'))
+        .sort((a, b) => b.metadata.timeCreated - a.metadata.timeCreated)[0];
+      
+      if (latestGlbFile) {
+        console.log(`No specific GLB found for token ${tokenId}, serving latest: ${latestGlbFile.name}`);
+        return latestGlbFile.createReadStream().pipe(res);
+      }
+      
+      return res.status(404).json({ error: 'No 3D model found for this NFT' });
+    }
+
+    console.log(`Serving GLB from Cloud Storage: ${glbFile.name}`);
+    glbFile.createReadStream().pipe(res);
+  } catch (error) {
+    console.error('Error retrieving 3D model:', error);
+    res.status(500).json({ error: 'Failed to retrieve 3D model', details: error.message });
+  }
+});
     if (filesToDelete.length > 0) {
       for (const file of filesToDelete) {
         try {
