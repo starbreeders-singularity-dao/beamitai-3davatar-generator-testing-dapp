@@ -6,9 +6,18 @@
 .env.local
 .env.development
 .env.production
+frontend/.env
+frontend/.env.local
+backend/.env.backend
+
+# Service account credentials
+beamit-service-account.json
+backend/beamit-service-account.json
 
 # Dependencies
 /node_modules
+/frontend/node_modules
+/backend/node_modules
 /.pnp
 .pnp.js
 
@@ -17,6 +26,7 @@
 
 # Production
 /build
+/frontend/build
 
 # Misc
 .DS_Store
@@ -28,6 +38,12 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Temporary files
+/backend/pfp
+/backend/fullbodyimages
+/backend/uploads
+/backend/3dmesh
 
 # .gitignore
 .env
