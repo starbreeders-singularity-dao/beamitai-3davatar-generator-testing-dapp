@@ -22,9 +22,16 @@ const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 // Initialize Google Cloud Storage
-const storage = new Storage({
-  keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS
+const serviceAccountPath = path.join(__dirname, 'beamit-service-account.json');
+console.log('Service account path:', serviceAccountPath);
+
+// Create storage client with simple configuration (matching our test script)
+const storage = new Storage({ 
+  keyFilename: serviceAccountPath
 });
+
+// Log bucket name for debugging
+console.log('Target bucket:', process.env.GCS_BUCKET);
 
 // CORS Configuration
 const allowedOrigins = [
@@ -236,6 +243,81 @@ app.post('/save-image', async (req, res) => {
   } catch (error) {
     console.error('Error saving image:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Upload to cloud endpoint
+app.post('/upload-to-cloud', async (req, res) => {
+  const { fileName } = req.body;
+  const filePath = path.join(__dirname, 'fullbodyimages', fileName);
+
+  console.log('Starting upload process for:', fileName);
+  console.log('File path:', filePath);
+  console.log('File exists:', fs.existsSync(filePath));
+  
+  if (!fs.existsSync(filePath)) {
+    console.error('File does not exist:', filePath);
+    return res.status(400).json({ error: 'File does not exist.' });
+  }
+
+  try {
+    const bucketName = process.env.GCS_BUCKET;
+    console.log(`Uploading to bucket: ${bucketName}, file: ${fileName}`);
+
+    // Get bucket reference
+    const bucket = storage.bucket(bucketName);
+    console.log('Bucket reference created');
+
+    // First, test bucket access
+    console.log('Testing bucket access...');
+    const [exists] = await bucket.exists();
+    console.log('Bucket exists:', exists);
+
+    if (!exists) {
+      throw new Error(`Bucket ${bucketName} does not exist or is not accessible`);
+    }
+
+    // Upload the file with a folder structure
+    const destination = `fullbodyimages/${fileName}`;
+    console.log('Starting file upload to:', destination);
+    
+    const [file] = await bucket.upload(filePath, {
+      destination: destination,
+      metadata: {
+        contentType: 'image/png'
+      }
+    });
+
+    console.log('Upload successful:', file.name);
+    
+    // Get the public URL (using the proper format for Uniform Bucket-Level Access)
+    const publicUrl = `https://storage.googleapis.com/${bucketName}/${file.name}`;
+    console.log('Public URL:', publicUrl);
+    
+    res.json({ 
+      message: 'File successfully uploaded to Cloud Storage',
+      url: publicUrl
+    });
+  } catch (error) {
+    console.error('Detailed upload error:', error);
+    console.error('Error stack:', error.stack);
+    
+    if (error.message && error.message.includes('Invalid JWT Signature')) {
+      console.error('\nJWT Signature error detected. Debugging info:');
+      console.error('Service account path:', serviceAccountPath);
+      console.error('Service account exists:', fs.existsSync(serviceAccountPath));
+      console.error('Bucket name:', process.env.GCS_BUCKET);
+      
+      return res.status(500).json({
+        error: 'Authentication error with Google Cloud Storage',
+        details: 'Invalid service account credentials'
+      });
+    }
+    
+    res.status(500).json({ 
+      error: 'Error uploading file', 
+      details: error.message
+    });
   }
 });
 
