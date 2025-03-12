@@ -609,15 +609,16 @@ function App() {
               ) : (
                 <>
                   {fullBodyImageUrl && (
-                    <img 
-                      src={fullBodyImageUrl} 
-                      alt="Full Body" 
-                      style={{ maxWidth: '100%', height: 'auto' }}
-                      onError={(e) => {
-                        console.error('Image load error:', e);
-                        setStatusMessage('Error loading full body image');
-                      }}
-                    />
+                    <div className="image-container">
+                      <img 
+                        src={fullBodyImageUrl} 
+                        alt="Full Body" 
+                        onError={(e) => {
+                          console.error('Image load error:', e);
+                          setStatusMessage('Error loading full body image');
+                        }}
+                      />
+                    </div>
                   )}
                   <div className="button-group">
                     <button onClick={handleBackButton} className="nft-button">Back to NFT Selection</button>

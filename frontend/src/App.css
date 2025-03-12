@@ -50,9 +50,14 @@ body {
 }
 
 .selected-nft {
-  max-width: 100%;
+  max-width: 400px;
   height: auto;
   margin-bottom: 20px;  /* Add space between image and button */
+  border-radius: 8px;
+  object-fit: contain;
+  border: 1px solid #ff00ff; /* Add a border to frame the image */
+  background-color: #1a1a1a; /* Darker background to make image stand out */
+  padding: 10px; /* Add some padding inside the frame */
 }
 
 .nft-gallery-container {
@@ -137,24 +142,39 @@ body {
 
 .full-body-image {
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   margin-bottom: 20px;
 }
 
+.image-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  max-width: 400px;
+  margin-bottom: 20px;
+}
+
 .full-body-image img {
   width: 100%;
-  max-width: 600px;  /* Match the width of the left frame */
+  max-width: 400px;  /* Match the size of the PFP */
   height: auto;
   border-radius: 8px;
+  object-fit: contain; /* Ensure the image fits within its container */
+  border: 1px solid #ff00ff; /* Add a border to frame the image */
+  background-color: #1a1a1a; /* Darker background to make image stand out */
+  padding: 10px; /* Add some padding inside the frame */
 }
 
 .button-group {
   display: flex;
-  gap: 10px;
+  gap: 20px; /* Increased gap between buttons */
   align-items: center;
-  justify-content: center;  /* Center the buttons */
-  margin-top: 10px;
+  justify-content: center;
+  margin-top: 20px; /* Increased margin to move buttons further down */
+  width: 100%; /* Make button group take full width */
 }
 
 .beam-button {
