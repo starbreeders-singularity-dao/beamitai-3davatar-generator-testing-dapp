@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gradio Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    h1 {
+      color: #333;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .image-container {
+      margin: 20px 0;
+      border: 1px solid #ddd;
+      padding: 10px;
+      border-radius: 5px;
+    }
+    img {
+      max-width: 100%;
+      max-height: 400px;
+    }
+    button {
+      background-color: #4CAF50;
+      border: none;
+      color: white;
+      padding: 15px 32px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 16px;
+      margin: 10px 2px;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+    button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+    .status {
+      margin-top: 20px;
+      padding: 10px;
+      border-radius: 5px;
+    }
+    .success {
+      background-color: #dff0d8;
+      color: #3c763d;
+    }
+    .error {
+      background-color: #f2dede;
+      color: #a94442;
+    }
+    .loading {
+      background-color: #d9edf7;
+      color: #31708f;
+    }
+    .model-viewer {
+      width: 100%;
+      height: 400px;
+      margin-top: 20px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Gradio Test</h1>
+    
+    <div class="image-container">
+      <h2>Test Image</h2>
+      <img id="testImage" src="/fullbodyimages/beamit-1741786964822-fullbody.png" alt="Test Image">
+    </div>
+    
+    <button id="sendButton" onclick="sendToGradio()">Send to Gradio</button>
+    
+    <div id="status" class="status" style="display: none;"></div>
+    
+    <div id="resultContainer" style="display: none;">
+      <h2>GLB Result</h2>
+      <div id="modelViewer" class="model-viewer"></div>
+      <p>GLB file saved to: <span id="glbPath"></span></p>
+    </div>
+  </div>
+
+  <script>
+    // The image path relative to the backend directory
+    const imagePath = 'backend/fullbodyimages/beamit-1741786964822-fullbody.png';
+    
+    async function sendToGradio() {
+      const statusEl = document.getElementById('status');
+      const sendButton = document.getElementById('sendButton');
+      const resultContainer = document.getElementById('resultContainer');
+      const glbPathEl = document.getElementById('glbPath');
+      const modelViewerEl = document.getElementById('modelViewer');
+      
+      // Update UI
+      statusEl.className = 'status loading';
+      statusEl.textContent = 'Sending image to Gradio...';
+      statusEl.style.display = 'block';
+      sendButton.disabled = true;
+      resultContainer.style.display = 'none';
+      
+      try {
+        // Send the request to our test server
+        const response = await fetch('http://localhost:3001/send-to-gradio', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ imagePath }),
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          // Update UI for success
+          statusEl.className = 'status success';
+          statusEl.textContent = data.message;
+          
+          // Display the GLB file info
+          glbPathEl.textContent = data.glbPath;
+          resultContainer.style.display = 'block';
+          
+          // Load the model viewer
+          modelViewerEl.innerHTML = `
+            <model-viewer
+              src="http://localhost:3001${data.glbPath}"
+              alt="3D Avatar"
+              auto-rotate
+              camera-controls
+              style="width: 100%; height: 400px;"
+            ></model-viewer>
+          `;
+          
+          // Load the model-viewer component
+          const script = document.createElement('script');
+          script.src = 'https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js';
+          document.head.appendChild(script);
+        } else {
+          // Update UI for error
+          statusEl.className = 'status error';
+          statusEl.textContent = `Error: ${data.error}`;
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        statusEl.className = 'status error';
+        statusEl.textContent = `Error: ${error.message}`;
+      } finally {
+        sendButton.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>

@@ -44,9 +44,18 @@ yarn-error.log*
 /backend/fullbodyimages
 /backend/uploads
 /backend/3dmesh
+/backend/glb
+/gradio-screenshots
+
+# Cache files
+frontend/node_modules/.cache/
+backend/node_modules/.cache/
 
 # .gitignore
 .env
 .vercel
 .env
 .env.backend
+
+# Google Cloud Service Account
+backend/beamit-service-account.json

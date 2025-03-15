@@ -1,31 +1,49 @@
-const express = require('express');
-const app = express();
-const axios = require('axios');
-const cors = require('cors');
-const multer = require('multer');
-const fs = require('fs');
 const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env.backend') });
+
+const express = require('express');
+const cors = require('cors');
+const WebSocket = require('ws');
+const http = require('http');
+const { Storage } = require('@google-cloud/storage');
+const fs = require('fs');
+const axios = require('axios');
+const multer = require('multer');
 const sharp = require('sharp');
-const { exec } = require('child_process');
 const FormData = require('form-data');
-const { Storage } = require('@google-cloud/storage'); // Import Google Cloud Storage
+const { exec } = require('child_process');
 const fsPromises = require('fs').promises;
 const util = require('util');
 const execPromisified = util.promisify(require('child_process').exec);
 
-
-// Use the environment variable for the port or default to 5001 for local development
+const app = express();
 const port = process.env.PORT || 5001;
 
-// Load the renamed .env.backend file instead of the default .env
-require('dotenv').config({ path: './.env.backend' });
+// Create HTTP server
+const server = http.createServer(app);
 
-// Dynamically set the SSH key path depending on the environment
-let keyPath = process.env.SSH_KEY_PATH;
+// Create WebSocket server
+const wss = new WebSocket.Server({ server });
+
+// Initialize Google Cloud Storage
+const serviceAccountPath = path.join(__dirname, 'beamit-service-account.json');
+console.log('Service account path:', serviceAccountPath);
+
+// Create storage client with simple configuration
+const storage = new Storage({ 
+  keyFilename: serviceAccountPath,
+  projectId: 'beamit-prototype'
+});
+
+// Log bucket name for debugging
+const bucketName = process.env.GCS_BUCKET;
+console.log('Target bucket:', bucketName);
 
 // Check if the app is running in a cloud environment or local
 const isCloudEnv = process.env.VERCEL_ENV || process.env.GOOGLE_CLOUD_RUN;
 
+// SSH key setup for cloud environment
+let keyPath = process.env.SSH_KEY_PATH;
 if (isCloudEnv) {
   // In Cloud environments, write the SSH key from the environment variable to a file
   keyPath = '/tmp/google-cloud1.pem';
@@ -49,7 +67,7 @@ app.use(cors({
   credentials: true,
 }));
 
-// Middleware to parse JSON
+// Middleware
 app.use(express.json());
 
 // Set up multer for file uploads to the 'pfp' folder
@@ -62,6 +80,102 @@ const upload = multer({
     }
     cb(null, true);
   },
+});
+
+// Ensure directories exist
+const uploadsDir = path.join(__dirname, 'uploads');
+const pfpDir = path.join(__dirname, 'pfp');
+const fullBodyImagesDir = path.join(__dirname, 'fullbodyimages');
+const glbDir = path.join(__dirname, 'glb');
+
+[uploadsDir, pfpDir, fullBodyImagesDir, glbDir].forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+});
+
+// Function to check for new GLB files
+async function checkForNewGlbFiles() {
+  try {
+    const bucket = storage.bucket(bucketName);
+    
+    // List all files in the trellis-results directory
+    const [files] = await bucket.getFiles({
+      prefix: 'trellis-results/',
+      delimiter: '/'
+    });
+
+    console.log('Checking for new GLB files in trellis-results/');
+
+    for (const file of files) {
+      if (file.name.endsWith('.glb')) {
+        const fileName = path.basename(file.name);
+        const localPath = path.join(glbDir, fileName);
+
+        // Check if we already have this file locally
+        if (!fs.existsSync(localPath)) {
+          console.log('New GLB file found:', fileName);
+
+          // Download the file
+          await file.download({
+            destination: localPath
+          });
+
+          console.log('Downloaded new GLB file:', fileName);
+
+          // Notify all connected WebSocket clients
+          const glbData = {
+            type: 'newGlbFile',
+            fileName: fileName,
+            url: `/glb/${fileName}`
+          };
+
+          wss.clients.forEach(client => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(JSON.stringify(glbData));
+            }
+          });
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error checking for new GLB files:', error);
+  }
+}
+
+// Set up periodic checking for new GLB files (every 5 seconds)
+setInterval(checkForNewGlbFiles, 5000);
+
+// Also check immediately when the server starts
+checkForNewGlbFiles();
+
+// WebSocket connection handling
+wss.on('connection', (ws) => {
+  console.log('New WebSocket client connected');
+  
+  // Send list of existing GLB files to new clients
+  const existingGlbFiles = fs.readdirSync(glbDir)
+    .filter(file => file.endsWith('.glb'))
+    .map(fileName => ({
+      type: 'existingGlbFile',
+      fileName,
+      url: `/glb/${fileName}`
+    }));
+
+  if (existingGlbFiles.length > 0) {
+    ws.send(JSON.stringify({
+      type: 'glbFileList',
+      files: existingGlbFiles
+    }));
+  }
+  
+  ws.on('error', (error) => {
+    console.error('WebSocket error:', error);
+  });
+
+  ws.on('close', () => {
+    console.log('Client disconnected');
+  });
 });
 
 // Route to generate images using Stability API with outpainting
@@ -169,12 +283,6 @@ app.use('/pfp', express.static(path.join(__dirname, 'pfp')));
 
 // Serve the 'fullbodyimages' folder as static content
 app.use('/fullbodyimages', express.static(path.join(__dirname, 'fullbodyimages')));
-
-// Initialize Google Cloud Storage with credentials
-const storage = new Storage({
-  keyFilename: path.join(__dirname, 'beamit-service-account.json'),
-  projectId: 'beamit-prototype'
-});
 
 // Add logging to verify initialization
 console.log('GCS Credentials loaded from:', process.env.GOOGLE_APPLICATION_CREDENTIALS);

@@ -1,0 +1,6 @@
+trellis-3d
+Pillow>=9.0.0
+imageio>=2.9.0
+torch>=1.9.0
+numpy>=1.19.2
+spconv-cu117  # Adjust CUDA version as needed 

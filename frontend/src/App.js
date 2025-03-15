@@ -5,6 +5,7 @@ import polygonIcon from './images/polygon.png';
 import NFTMinter from './components/NFTMinter';
 import NFTDisplay from './components/NFTDisplay';
 import '@google/model-viewer/dist/model-viewer';
+import GlbViewer from './components/GlbViewer';
 
 // Explicitly set environment variables on window for debugging
 window.env = {
@@ -632,6 +633,7 @@ function App() {
           </div>
         )}
       </div>
+      <GlbViewer />
     </div>
   );
 }

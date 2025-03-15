@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TRELLIS Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    h1 {
+      color: #333;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .image-container {
+      margin: 20px 0;
+      border: 1px solid #ddd;
+      padding: 10px;
+      border-radius: 5px;
+    }
+    img {
+      max-width: 100%;
+      max-height: 400px;
+    }
+    button {
+      background-color: #4CAF50;
+      border: none;
+      color: white;
+      padding: 15px 32px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 16px;
+      margin: 10px 2px;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+    button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+    .status {
+      margin-top: 20px;
+      padding: 10px;
+      border-radius: 5px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .success {
+      background-color: #dff0d8;
+      color: #3c763d;
+    }
+    .error {
+      background-color: #f2dede;
+      color: #a94442;
+    }
+    .loading {
+      background-color: #d9edf7;
+      color: #31708f;
+    }
+    .model-viewer {
+      width: 100%;
+      height: 400px;
+      margin-top: 20px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+    .debug-info {
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      background-color: #f9f9f9;
+      font-family: monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .tabs {
+      display: flex;
+      margin-top: 20px;
+      border-bottom: 1px solid #ddd;
+    }
+    .tab {
+      padding: 10px 15px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      border-bottom: none;
+      margin-bottom: -1px;
+    }
+    .tab.active {
+      border-color: #ddd;
+      border-radius: 5px 5px 0 0;
+      background-color: white;
+    }
+    .tab-content {
+      display: none;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-top: none;
+      border-radius: 0 0 5px 5px;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    .progress-steps {
+      margin: 20px 0;
+      width: 100%;
+    }
+    .step {
+      margin-bottom: 10px;
+      padding: 10px;
+      border-radius: 5px;
+      background-color: #f5f5f5;
+      display: flex;
+      align-items: center;
+    }
+    .step-number {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background-color: #ccc;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 10px;
+      font-weight: bold;
+    }
+    .step.active .step-number {
+      background-color: #4CAF50;
+    }
+    .step.completed .step-number {
+      background-color: #3c763d;
+    }
+    .step.error .step-number {
+      background-color: #a94442;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>TRELLIS 3D Avatar Generator</h1>
+    
+    <div class="image-container">
+      <h2>Test Image</h2>
+      <img id="testImage" src="http://localhost:3001/fullbodyimages/beamit-1741794707663-fullbody.png" alt="Test Image">
+    </div>
+    
+    <button id="sendButton" onclick="sendToTrellis()">Generate 3D Avatar</button>
+    
+    <div id="status" class="status" style="display: none;"></div>
+    
+    <div class="progress-steps" id="progressSteps" style="display: none;">
+      <div class="step" id="step1">
+        <div class="step-number">1</div>
+        <div class="step-text">Uploading image to TRELLIS server...</div>
+      </div>
+      <div class="step" id="step2">
+        <div class="step-number">2</div>
+        <div class="step-text">Processing image with TRELLIS...</div>
+      </div>
+      <div class="step" id="step3">
+        <div class="step-number">3</div>
+        <div class="step-text">Downloading and saving GLB file...</div>
+      </div>
+    </div>
+    
+    <div class="tabs">
+      <div class="tab active" onclick="showTab('result')">3D Result</div>
+      <div class="tab" onclick="showTab('debug')">Debug Info</div>
+    </div>
+    
+    <div id="resultTab" class="tab-content active">
+      <div id="resultContainer" style="display: none;">
+        <h2>3D Avatar Result</h2>
+        <div id="modelViewer" class="model-viewer"></div>
+        <p>GLB file saved to: <span id="glbPath"></span></p>
+      </div>
+    </div>
+    
+    <div id="debugTab" class="tab-content">
+      <div id="debugInfo" class="debug-info">No debug information available yet.</div>
+    </div>
+  </div>
+
+  <script>
+    // The image path relative to the backend directory
+    const imagePath = 'backend/fullbodyimages/beamit-1741786964822-fullbody.png';
+    
+    function showTab(tabName) {
+      // Hide all tabs
+      document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      
+      document.querySelectorAll('.tab').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      
+      // Show the selected tab
+      document.getElementById(tabName + 'Tab').classList.add('active');
+      
+      // Activate the tab button
+      document.querySelectorAll('.tab').forEach(tab => {
+        if (tab.textContent.toLowerCase().includes(tabName.toLowerCase())) {
+          tab.classList.add('active');
+        }
+      });
+    }
+    
+    // Add a function to check if the image loaded successfully
+    document.getElementById('testImage').addEventListener('load', function() {
+      console.log('Image loaded successfully');
+    });
+    
+    document.getElementById('testImage').addEventListener('error', function() {
+      console.log('Image failed to load');
+      document.getElementById('status').className = 'status error';
+      document.getElementById('status').textContent = 'Error: Image failed to load. Check the server console for details.';
+      document.getElementById('status').style.display = 'block';
+    });
+    
+    function showDebugInfo(info) {
+      const debugEl = document.getElementById('debugInfo');
+      debugEl.textContent = JSON.stringify(info, null, 2);
+      showTab('debug');
+    }
+    
+    function updateStep(stepNumber, status, message) {
+      const step = document.getElementById(`step${stepNumber}`);
+      
+      // Remove all status classes
+      step.classList.remove('active', 'completed', 'error');
+      
+      // Add the appropriate class only if status is not empty
+      if (status && status.trim() !== '') {
+        step.classList.add(status);
+      }
+      
+      // Update the message if provided
+      if (message) {
+        step.querySelector('.step-text').textContent = message;
+      }
+    }
+    
+    async function sendToTrellis() {
+      const statusEl = document.getElementById('status');
+      const sendButton = document.getElementById('sendButton');
+      const resultContainer = document.getElementById('resultContainer');
+      const glbPathEl = document.getElementById('glbPath');
+      const modelViewerEl = document.getElementById('modelViewer');
+      const debugEl = document.getElementById('debugInfo');
+      const progressSteps = document.getElementById('progressSteps');
+      
+      // Update UI
+      statusEl.className = 'status loading';
+      statusEl.textContent = 'Sending image to TRELLIS...';
+      statusEl.style.display = 'block';
+      sendButton.disabled = true;
+      resultContainer.style.display = 'none';
+      debugEl.textContent = 'Processing...';
+      progressSteps.style.display = 'block';
+      
+      // Reset all steps
+      updateStep(1, 'active', 'Uploading image to TRELLIS server...');
+      updateStep(2, '', 'Processing image with TRELLIS...');
+      updateStep(3, '', 'Downloading and saving GLB file...');
+      
+      try {
+        // Send the request to our test server
+        const response = await fetch('http://localhost:3001/send-to-gradio', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ imagePath }),
+        });
+        
+        // Update step 1 as completed
+        updateStep(1, 'completed', 'Image uploaded successfully');
+        updateStep(2, 'active', 'Processing image with TRELLIS...');
+        
+        const data = await response.json();
+        
+        // Show debug info
+        showDebugInfo(data);
+        
+        // Update step 2 as completed
+        updateStep(2, 'completed', 'Image processed successfully');
+        updateStep(3, 'active', 'Downloading and saving GLB file...');
+        
+        if (data.success) {
+          // Update step 3 as completed
+          updateStep(3, 'completed', 'GLB file saved successfully');
+          
+          // Update UI for success
+          statusEl.className = 'status success';
+          statusEl.textContent = data.message;
+          
+          // Display the GLB file info
+          glbPathEl.textContent = data.glbPath;
+          resultContainer.style.display = 'block';
+          
+          // Show the result tab
+          showTab('result');
+          
+          // Load the model viewer
+          modelViewerEl.innerHTML = `
+            <model-viewer
+              src="http://localhost:3001${data.glbPath}"
+              alt="3D Avatar"
+              auto-rotate
+              camera-controls
+              style="width: 100%; height: 400px;"
+            ></model-viewer>
+          `;
+          
+          // Load the model-viewer component
+          const script = document.createElement('script');
+          script.src = 'https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js';
+          document.head.appendChild(script);
+        } else {
+          // Update step with error
+          if (data.error.includes('Step 1')) {
+            updateStep(1, 'error', 'Error uploading image');
+          } else if (data.error.includes('Step 2')) {
+            updateStep(2, 'error', 'Error processing image');
+          } else {
+            updateStep(3, 'error', 'Error saving GLB file');
+          }
+          
+          // Update UI for error
+          statusEl.className = 'status error';
+          let errorMessage = `Error: ${data.error}`;
+          
+          if (data.details) {
+            errorMessage += `\n\nDetails: ${data.details}`;
+          }
+          
+          if (data.suggestion) {
+            errorMessage += `\n\nSuggestion: ${data.suggestion}`;
+          }
+          
+          statusEl.textContent = errorMessage;
+          
+          // Show the debug tab
+          showTab('debug');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        
+        // Update step with error
+        updateStep(3, 'error', 'Error communicating with server');
+        
+        statusEl.className = 'status error';
+        statusEl.textContent = `Error: ${error.message}`;
+        
+        // Show debug info
+        showDebugInfo({ error: error.toString(), stack: error.stack });
+        
+        // Show the debug tab
+        showTab('debug');
+      } finally {
+        sendButton.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html> 
