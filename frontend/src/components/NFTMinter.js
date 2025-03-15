@@ -40,11 +40,11 @@ const NFTMinter = ({ glbUrl, originalNFT, onBeamAnother }) => {
 
             setStatus('Checking network...');
             const chainId = await window.ethereum.request({ method: 'eth_chainId' });
-            if (chainId !== '0x13882') {
-                setStatus('Switching to Polygon Amoy...');
+            if (chainId !== '0x82750') {
+                setStatus('Switching to Scroll Mainnet...');
                 await window.ethereum.request({
                     method: 'wallet_switchEthereumChain',
-                    params: [{ chainId: '0x13882' }],
+                    params: [{ chainId: '0x82750' }],
                 });
             }
 
