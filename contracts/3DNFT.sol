@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-//Scroll Sepolia blockchain Contract address:0x1dA04B1BC176F72E7D013385cDb23C34e11FB664
+//Scroll mainnet
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
