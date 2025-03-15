@@ -54,25 +54,7 @@ const GlbViewer = () => {
     };
   }, []); // Empty dependency array means this runs once on mount
 
-  return (
-    <div>
-      <h2>3D Models</h2>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem' }}>
-        {glbFiles.map((file, index) => (
-          <div key={index} style={{ border: '1px solid #ccc', padding: '1rem', borderRadius: '4px' }}>
-            <h3>{file.fileName}</h3>
-            {/* You can add a 3D viewer component here */}
-            <a href={file.url} download className="download-button">
-              Download GLB
-            </a>
-          </div>
-        ))}
-      </div>
-      {glbFiles.length === 0 && (
-        <p>No 3D models available yet. They will appear here automatically when ready.</p>
-      )}
-    </div>
-  );
+  return null; // Component no longer displays any content
 };
 
 export default GlbViewer;

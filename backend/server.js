@@ -70,6 +70,9 @@ app.use(cors({
 // Middleware
 app.use(express.json());
 
+// Serve GLB files statically
+app.use('/glb', express.static(path.join(__dirname, 'glb')));
+
 // Set up multer for file uploads to the 'pfp' folder
 const upload = multer({
   dest: 'pfp/',
@@ -97,6 +100,12 @@ const glbDir = path.join(__dirname, 'glb');
 // Function to check for new GLB files
 async function checkForNewGlbFiles() {
   try {
+    // Ensure GLB directory exists
+    if (!fs.existsSync(glbDir)) {
+      console.log('Creating GLB directory:', glbDir);
+      fs.mkdirSync(glbDir, { recursive: true });
+    }
+
     const bucket = storage.bucket(bucketName);
     
     // List all files in the trellis-results directory
@@ -106,35 +115,49 @@ async function checkForNewGlbFiles() {
     });
 
     console.log('Checking for new GLB files in trellis-results/');
+    console.log('Found files:', files.map(f => f.name));
 
     for (const file of files) {
       if (file.name.endsWith('.glb')) {
         const fileName = path.basename(file.name);
         const localPath = path.join(glbDir, fileName);
 
+        console.log('Found GLB file:', fileName);
+        console.log('Local path:', localPath);
+        console.log('File exists locally:', fs.existsSync(localPath));
+
         // Check if we already have this file locally
         if (!fs.existsSync(localPath)) {
           console.log('New GLB file found:', fileName);
 
-          // Download the file
-          await file.download({
-            destination: localPath
-          });
+          try {
+            // Download the file
+            await file.download({
+              destination: localPath
+            });
 
-          console.log('Downloaded new GLB file:', fileName);
+            console.log('Downloaded new GLB file:', fileName);
+            console.log('File exists after download:', fs.existsSync(localPath));
+            console.log('GLB directory contents:', fs.readdirSync(glbDir));
 
-          // Notify all connected WebSocket clients
-          const glbData = {
-            type: 'newGlbFile',
-            fileName: fileName,
-            url: `/glb/${fileName}`
-          };
+            // Notify all connected WebSocket clients with full URL
+            const glbData = {
+              type: 'glbReady',
+              fileName: fileName,
+              url: `http://localhost:${port}/glb/${fileName}`
+            };
 
-          wss.clients.forEach(client => {
-            if (client.readyState === WebSocket.OPEN) {
-              client.send(JSON.stringify(glbData));
-            }
-          });
+            let clientCount = 0;
+            wss.clients.forEach(client => {
+              if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify(glbData));
+                clientCount++;
+              }
+            });
+            console.log(`Notified ${clientCount} WebSocket clients about new GLB file`);
+          } catch (downloadError) {
+            console.error('Error downloading GLB file:', downloadError);
+          }
         }
       }
     }
@@ -159,7 +182,7 @@ wss.on('connection', (ws) => {
     .map(fileName => ({
       type: 'existingGlbFile',
       fileName,
-      url: `/glb/${fileName}`
+      url: `http://localhost:5001/glb/${fileName}`  // Use full URL
     }));
 
   if (existingGlbFiles.length > 0) {
@@ -220,7 +243,7 @@ app.post('/generate-images', async (req, res) => {
 
     const stabilityResponse = await axios.post('https://api.stability.ai/v2beta/stable-image/edit/outpaint', formData, {
       headers: {
-        'Authorization': `Bearer ${process.env.DREAMSTUDIO_API_KEY}`,
+        'Authorization': `Bearer ${process.env.STABILITY_API_KEY}`,
         'Accept': 'image/*',
         ...formData.getHeaders(),
       },
@@ -291,16 +314,42 @@ console.log('GCS Bucket:', process.env.GCS_BUCKET);
 // Update the upload endpoint with better error handling
 app.post('/upload-to-cloud', async (req, res) => {
   const { fileName } = req.body;
+  
+  console.log('=== Starting Upload Process ===');
+  console.log('Request body:', req.body);
+  
+  // Ensure fullbodyimages directory exists
+  if (!fs.existsSync(fullBodyImagesDir)) {
+    console.log('Creating fullbodyimages directory:', fullBodyImagesDir);
+    fs.mkdirSync(fullBodyImagesDir, { recursive: true });
+  }
+  
   const filePath = path.join(__dirname, 'fullbodyimages', fileName);
 
-  console.log('Starting upload process for:', fileName);
-  console.log('File path:', filePath);
-  console.log('File exists:', fs.existsSync(filePath));
-  console.log('Bucket name:', process.env.GCS_BUCKET);
+  console.log('Upload details:', {
+    fileName,
+    filePath,
+    fullBodyImagesDir,
+    directoryExists: fs.existsSync(fullBodyImagesDir),
+    fileExists: fs.existsSync(filePath)
+  });
+
+  if (fs.existsSync(fullBodyImagesDir)) {
+    console.log('Directory contents:', fs.readdirSync(fullBodyImagesDir));
+  }
 
   if (!fs.existsSync(filePath)) {
     console.error('File does not exist:', filePath);
-    return res.status(400).json({ error: 'File does not exist.' });
+    return res.status(400).json({ 
+      error: 'File does not exist.',
+      details: {
+        fileName,
+        filePath,
+        fullBodyImagesDir,
+        directoryExists: fs.existsSync(fullBodyImagesDir),
+        availableFiles: fs.existsSync(fullBodyImagesDir) ? fs.readdirSync(fullBodyImagesDir) : []
+      }
+    });
   }
 
   try {
@@ -340,9 +389,14 @@ app.post('/upload-to-cloud', async (req, res) => {
 
 // Endpoint to save the image in the 'pfp' folder
 app.post('/save-image', async (req, res) => {
-  const { imageUrl } = req.body;
+  console.log('=== /save-image endpoint called ===');
+  const { imageUrl, walletAddress, nftName } = req.body;
 
-  console.log('Received request to save image:', imageUrl);
+  console.log('Request body:', {
+    imageUrl,
+    walletAddress,
+    nftName
+  });
 
   if (!imageUrl) {
     console.error('Image URL is missing');
@@ -350,28 +404,50 @@ app.post('/save-image', async (req, res) => {
   }
 
   try {
+    console.log('Attempting to download image from:', imageUrl);
     const response = await axios.get(imageUrl, {
       responseType: 'arraybuffer',
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
-      }
+      },
+      timeout: 10000 // 10 second timeout
     });
+    
+    console.log('Image download successful, content length:', response.data.length);
     const buffer = Buffer.from(response.data, 'binary');
+
+    // Ensure pfp directory exists
+    const pfpDir = path.join(__dirname, 'pfp');
+    if (!fs.existsSync(pfpDir)) {
+      console.log('Creating pfp directory...');
+      fs.mkdirSync(pfpDir);
+    }
 
     const timestamp = Date.now();
     const filename = `beamit-${timestamp}.png`;
-    const imagePath = path.join(__dirname, 'pfp', filename);
+    const imagePath = path.join(pfpDir, filename);
+    
+    console.log('Writing file to:', imagePath);
     fs.writeFileSync(imagePath, buffer);
 
-    console.log('Image saved:', imagePath);
+    console.log('Image saved successfully:', imagePath);
     res.json({ 
       message: 'Image saved successfully.',
-      filename: filename  // Return the actual filename used
+      filename: filename
     });
   } catch (error) {
-    console.error('Error saving image:', error.message);
-    console.error('Error details:', error.response?.data || error.message);
-    res.status(500).json({ error: 'Error saving image', details: error.message });
+    console.error('Error in /save-image:', error);
+    console.error('Full error details:', {
+      message: error.message,
+      code: error.code,
+      response: error.response?.data,
+      status: error.response?.status
+    });
+    res.status(500).json({ 
+      error: 'Error saving image', 
+      details: error.message,
+      code: error.code
+    });
   }
 });
 
@@ -771,13 +847,57 @@ app.get('/test-glb', (req, res) => {
 const nftRoutes = require('./routes/nftRoutes');
 app.use(nftRoutes);
 
+// Add test endpoint for NFT mint page
+app.get('/api/test/glb-for-mint', async (req, res) => {
+  try {
+    console.log('=== Test GLB for Mint ===');
+    
+    // Check if glb directory exists
+    if (!fs.existsSync(glbDir)) {
+      console.log('Creating GLB directory:', glbDir);
+      fs.mkdirSync(glbDir, { recursive: true });
+    }
+
+    // Read all files in the glb directory
+    const files = fs.readdirSync(glbDir);
+    console.log('Files in glb directory:', files);
+
+    // Filter for GLB files
+    const glbFiles = files.filter(file => file.endsWith('.glb'));
+    
+    if (glbFiles.length === 0) {
+      return res.status(404).json({ error: 'No GLB files found in local directory' });
+    }
+
+    // Get the latest GLB file based on file creation time
+    const latestFile = glbFiles
+      .map(file => ({
+        name: file,
+        time: fs.statSync(path.join(glbDir, file)).mtime.getTime()
+      }))
+      .sort((a, b) => b.time - a.time)[0].name;
+
+    console.log('Latest GLB file:', latestFile);
+
+    res.json({
+      status: 'ready',
+      fileName: latestFile,
+      url: `http://localhost:${port}/glb/${latestFile}`
+    });
+  } catch (error) {
+    console.error('Error in test GLB endpoint:', error);
+    res.status(500).json({ error: 'Failed to get test GLB file', details: error.message });
+  }
+});
+
 // Ensure environment variables are set for Alchemy
 if (!process.env.ALCHEMY_API_KEY) {
   console.warn('ALCHEMY_API_KEY environment variable is not set. Some NFT functionality may not work correctly.');
 }
 
-// Start the backend server
-app.listen(port, '0.0.0.0', () => {
+// Start the backend server using the HTTP server instance
+server.listen(port, '0.0.0.0', () => {
   console.log(`Backend server running on port ${port}`);
+  console.log(`WebSocket server running on ws://localhost:${port}`);
 });
 

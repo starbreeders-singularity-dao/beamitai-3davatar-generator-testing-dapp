@@ -116,12 +116,14 @@ const NFTMinter = ({ glbUrl, originalNFT, onBeamAnother }) => {
                     disabled={isLoading}
                     style={{
                         padding: '10px 20px',
-                        backgroundColor: isLoading ? '#cccccc' : PINK_COLOR,
-                        color: 'white',
-                        border: 'none',
+                        fontSize: '16px',
+                        backgroundColor: 'black',
+                        color: '#ff00ff',
+                        border: '2px solid #ff00ff',
                         borderRadius: '5px',
                         cursor: isLoading ? 'not-allowed' : 'pointer',
-                        minWidth: '150px'
+                        minWidth: '150px',
+                        fontWeight: 'bold'
                     }}
                 >
                     {isLoading ? 'Processing...' : 'Mint NFT'}

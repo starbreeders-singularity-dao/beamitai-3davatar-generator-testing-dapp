@@ -6,6 +6,7 @@ import NFTMinter from './components/NFTMinter';
 import NFTDisplay from './components/NFTDisplay';
 import '@google/model-viewer/dist/model-viewer';
 import GlbViewer from './components/GlbViewer';
+import TestMintPage from './components/TestMintPage';
 
 // Explicitly set environment variables on window for debugging
 window.env = {
@@ -53,6 +54,7 @@ function App() {
   const [modelViewerError, setModelViewerError] = useState(null);
   const [showMintButton, setShowMintButton] = useState(false);
   const [selectedNFTName, setSelectedNFTName] = useState('');
+  const [showTestMintPage, setShowTestMintPage] = useState(false);
 
   useEffect(() => {
     if (account) {
@@ -63,8 +65,7 @@ function App() {
   // WebSocket connection setup
   useEffect(() => {
     console.log('Setting up WebSocket connection...');
-    const apiUrl = process.env.REACT_APP_API_URL || window.env.REACT_APP_API_URL || 'ws://localhost:5001';
-    const wsUrl = apiUrl.replace('http://', 'ws://').replace('https://', 'wss://');
+    const wsUrl = 'ws://localhost:5001';  // Fixed WebSocket URL
     console.log('Using WebSocket URL:', wsUrl);
     
     const ws = new WebSocket(wsUrl);
@@ -83,26 +84,8 @@ function App() {
           setGlbFileName(data.fileName);
           setGlbStatus('ready');
           setUploadStatus('3D Avatar Ready!');
+          setGlbUrl(`http://localhost:5001/glb/${data.fileName}`);
           setShowMintButton(true);
-          
-          // Get signed URL for the GLB file
-          fetch('http://localhost:5001/api/glb/signed-url', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ 
-              fileName: data.fileName 
-            }),
-          })
-          .then(response => response.json())
-          .then(data => {
-            setGlbUrl(data.signedUrl);
-          })
-          .catch(error => {
-            console.error('Error getting signed URL:', error);
-            setModelViewerError('Failed to get GLB file URL');
-          });
         }
       } catch (error) {
         console.error('Error parsing WebSocket message:', error);
@@ -280,29 +263,51 @@ function App() {
       setStatusMessage('Downloading PFP...');
       console.log('Starting download with NFT URL:', selectedNFT);
 
+      // Log the request payload
+      const payload = { 
+        imageUrl: selectedNFT,
+        walletAddress: account,
+        nftName: selectedNFTName
+      };
+      console.log('Sending request payload:', payload);
+
       const downloadResponse = await fetch('http://localhost:5001/save-image', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
-          imageUrl: selectedNFT,
-          walletAddress: account,
-          nftName: selectedNFTName
-        }),
+        body: JSON.stringify(payload),
       });
 
+      // Log the raw response
+      console.log('Download Response:', {
+        status: downloadResponse.status,
+        statusText: downloadResponse.statusText,
+        headers: Object.fromEntries(downloadResponse.headers.entries())
+      });
+
+      // Try to get response text first
+      const responseText = await downloadResponse.text();
+      console.log('Raw response text:', responseText);
+
       if (!downloadResponse.ok) {
-        const errorText = await downloadResponse.text();
         console.error('Download failed:', {
           status: downloadResponse.status,
           statusText: downloadResponse.statusText,
-          response: errorText
+          response: responseText
         });
         throw new Error(`Failed to download image: ${downloadResponse.statusText}`);
       }
 
-      const downloadData = await downloadResponse.json();
+      // Try to parse the response as JSON
+      let downloadData;
+      try {
+        downloadData = JSON.parse(responseText);
+      } catch (e) {
+        console.error('Failed to parse response as JSON:', e);
+        throw new Error('Invalid response from server');
+      }
+
       console.log('Image download success:', downloadData);
       setStatusMessage('Image Download Success');
 
@@ -320,17 +325,34 @@ function App() {
         }),
       });
 
+      // Log the raw generate response
+      console.log('Generate Response:', {
+        status: generateResponse.status,
+        statusText: generateResponse.statusText,
+        headers: Object.fromEntries(generateResponse.headers.entries())
+      });
+
+      const generateResponseText = await generateResponse.text();
+      console.log('Raw generate response text:', generateResponseText);
+
       if (!generateResponse.ok) {
-        const errorText = await generateResponse.text();
         console.error('Generation failed:', {
           status: generateResponse.status,
           statusText: generateResponse.statusText,
-          response: errorText
+          response: generateResponseText
         });
         throw new Error(`Failed to generate full body image: ${generateResponse.statusText}`);
       }
 
-      const generateData = await generateResponse.json();
+      // Try to parse generate response as JSON
+      let generateData;
+      try {
+        generateData = JSON.parse(generateResponseText);
+      } catch (e) {
+        console.error('Failed to parse generate response as JSON:', e);
+        throw new Error('Invalid response from generate server');
+      }
+
       console.log('Full body image generated successfully:', generateData);
       
       // Use the imagePath directly as it already contains the full URL
@@ -352,6 +374,7 @@ function App() {
     try {
       console.log('=== Starting Beam It Process ===');
       setUploadStatus('Processing your 3D Avatar...');
+      setShowNFTGrid(false); // Hide NFT grid when starting the beam process
       const filename = fullBodyImageUrl.split('/').pop();
       const walletPrefix = account.toLowerCase().substring(2, 8);
       
@@ -382,6 +405,7 @@ function App() {
     } catch (error) {
       console.error('Error uploading to cloud:', error);
       setUploadStatus('Failed to beam to cloud');
+      setShowNFTGrid(true); // Show NFT grid again if there's an error
     }
   };
 
@@ -409,227 +433,292 @@ function App() {
         </div>
       </header>
 
-      <div className="App-content">
-        <div className="avatar-selection">
-          <h2 className="pink-text">Your Avatar Selection</h2>
-          {selectedNFT && (
-            <div>
-              <img src={selectedNFT} alt="Selected NFT" className="selected-nft" />
-              <button className="nft-button" onClick={handleGenerateFullBodyImage}>
-                {loading ? 'Generating...' : 'Create Full Body Image'}
-              </button>
-              <p className="status-message">{statusMessage}</p>
-              {loading && <div className="loading-dots">...</div>}
-            </div>
-          )}
-        </div>
+      <div className="App-content" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <h1 style={{ 
+          color: '#00ffff', 
+          textAlign: 'center', 
+          marginBottom: '20px',
+          width: '100%',
+          padding: '20px 0',
+          marginTop: '20px'
+        }}>
+          {!account 
+            ? "3D Avatar Generator - Connect Your Scroll Wallet to Teleport!" 
+            : glbStatus === 'ready' && glbUrl
+              ? "Fabulous! Now mint your NFT on scroll testnet and load it into any compatible Metaverse!"
+              : fullBodyImageUrl 
+                ? "Great! Now click Beamit! to 3D-fi your Avatar!" 
+                : "First: let's generate a FullBody Image from your PFP"}
+        </h1>
         
-        {showNFTGrid ? (
-          <div className="nft-gallery-container">
-            <h2 className="pink-text">Please select an image to create your avatar</h2>
-            {account ? (
-              <div className="nft-gallery">
-                {nfts.map((nft, index) => (
-                  <div key={index} className="nft-item">
-                    <img src={nft.image_url} alt={nft.name} style={{ width: '100px' }} />
-                    <p>{nft.name}</p>
-                    <button onClick={() => handleCreateAvatar(nft.image_url, nft.name)} className="nft-button">
-                      Choose PFP
+        {showTestMintPage ? (
+          <TestMintPage />
+        ) : (
+          <div style={{ width: '100%', marginTop: '20px' }}>
+            <div style={{ display: 'flex', flexDirection: 'row', gap: '30px', flexWrap: 'nowrap' }}>
+              <div className="avatar-selection" style={{ flex: '0 0 300px' }}>
+                <h2 className="pink-text">Your Avatar Selection</h2>
+                {selectedNFT && (
+                  <div>
+                    <img src={selectedNFT} alt="Selected NFT" className="selected-nft" />
+                    <button className="nft-button" onClick={handleGenerateFullBodyImage}>
+                      {loading ? 'Generating...' : 'Create Full Body Image'}
                     </button>
+                    <p className="status-message">{loading ? statusMessage : "Note: This will take up to 35 sec!"}</p>
+                    {loading && <div className="loading-dots">...</div>}
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className="pink-text">Please connect your MetaMask wallet to view your NFTs.</p>
-            )}
-          </div>
-        ) : uploadStatus === 'Processing your 3D Avatar...' ? (
-          <div className="model-container" style={{ textAlign: 'center', padding: '20px' }}>
-            <h2 className="pink-text">Processing Your 3D Avatar</h2>
-            <div className="loading">Processing...</div>
-            <NFTDisplay walletPrefix={account ? account.toLowerCase().substring(2, 8) : null} />
-          </div>
-        ) : glbStatus === 'ready' && glbUrl ? (
-          <div className="model-container">
-            <h2 className="pink-text">Your 3D Avatar</h2>
-            <div style={{
-              position: 'relative',
-              width: '800px',
-              height: '800px',
-              margin: '0 auto',
-              backgroundColor: '#f5f5f5',
-              borderRadius: '12px',
-              overflow: 'hidden',
-              boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-            }}>
-              <div id="loading" 
-                   style={{
-                     position: 'absolute',
-                     top: '50%',
-                     left: '50%',
-                     transform: 'translate(-50%, -50%)',
-                     zIndex: 1,
-                     background: 'rgba(0,0,0,0.7)',
-                     color: 'white',
-                     padding: '10px 20px',
-                     borderRadius: '20px',
-                     display: modelViewerError ? 'none' : 'block'
-                   }}>
-                Loading 3D Model...
+                )}
               </div>
               
-              {modelViewerError && (
-                <div style={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  color: 'red',
-                  background: '#ffebee',
-                  padding: '20px',
+              {showNFTGrid ? (
+                <div className="nft-gallery-container" style={{ flex: '1' }}>
+                  <h2 className="pink-text">Please select an image to create your avatar</h2>
+                  {account ? (
+                    <div className="nft-gallery" style={{ 
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      justifyContent: 'center',
+                      gap: '20px',
+                      padding: '20px'
+                    }}>
+                      {nfts.map((nft, index) => (
+                        <div key={index} className="nft-item" style={{
+                          border: '1px solid #ff00ff',
+                          borderRadius: '8px',
+                          padding: '15px',
+                          textAlign: 'center',
+                          background: 'black',
+                          color: 'white',
+                          width: '190px',  // Reduced from 200px
+                          flexShrink: 0
+                        }}>
+                          <img src={nft.image_url} alt={nft.name} style={{ 
+                            width: '142px',  // Reduced from 150px
+                            height: '142px',  // Reduced from 150px
+                            objectFit: 'cover',
+                            borderRadius: '4px'
+                          }} />
+                          <p style={{ margin: '10px 0' }}>{nft.name}</p>
+                          <button onClick={() => handleCreateAvatar(nft.image_url, nft.name)} className="nft-button">
+                            Choose PFP
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="pink-text">Please connect your MetaMask wallet to view your NFTs.</p>
+                  )}
+                </div>
+              ) : uploadStatus === 'Processing your 3D Avatar...' ? (
+                <div className="model-container" style={{ textAlign: 'center', padding: '20px' }}>
+                  <h2 className="pink-text">Processing Your 3D Avatar</h2>
+                  <div className="loading" style={{ color: '#00ffff', fontWeight: 'bold' }}>Processing...</div>
+                  <p style={{ color: '#00ffff' }}>{uploadStatus}</p>
+                  <div style={{ color: '#00ffff' }}>
+                    <NFTDisplay walletPrefix={account ? account.toLowerCase().substring(2, 8) : null} />
+                  </div>
+                </div>
+              ) : glbStatus === 'ready' && glbUrl ? (
+                <div className="model-container" style={{
+                  border: '1px solid #ff00ff',
                   borderRadius: '8px',
-                  maxWidth: '80%',
-                  textAlign: 'center'
+                  padding: '20px',
+                  background: 'black'
                 }}>
-                  Error loading model: {modelViewerError}
-                </div>
-              )}
-
-              <model-viewer
-                src={glbUrl}
-                alt="3D Avatar"
-                auto-rotate
-                camera-controls
-                camera-orbit="0deg 75deg 105%"
-                min-camera-orbit="auto auto 50%"
-                max-camera-orbit="auto auto 200%"
-                camera-target="0m 1m 0m"
-                field-of-view="30deg"
-                environment-image="neutral"
-                shadow-intensity="1"
-                exposure="1"
-                shadow-softness="1"
-                interaction-prompt="auto"
-                interaction-prompt-style="basic"
-                interaction-prompt-threshold="0"
-                auto-rotate-delay="0"
-                rotation-per-second="30deg"
-                min-field-of-view="25deg"
-                max-field-of-view="45deg"
-                interpolation-decay="200"
-                loading="eager"
-                reveal="auto"
-                ar
-                ar-modes="webxr scene-viewer quick-look"
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  backgroundColor: '#f5f5f5',
-                  '--poster-color': 'transparent',
-                  '--progress-bar-color': '#FF1493',
-                  '--progress-bar-height': '2px'
-                }}
-                onLoad={() => {
-                  console.log('Model loaded successfully');
-                  document.getElementById('loading').style.display = 'none';
-                }}
-                onError={(error) => {
-                  console.error('Model viewer error:', error);
-                  setModelViewerError(error.detail);
-                }}
-                onProgress={(event) => {
-                  const percent = event.detail.totalProgress * 100;
-                  const loading = document.getElementById('loading');
-                  if (loading) {
-                    loading.textContent = `Loading: ${percent.toFixed(0)}%`;
-                  }
-                }}
-              >
-                <div class="progress-bar hide" slot="progress-bar">
-                  <div class="update-bar"></div>
-                </div>
-                <button slot="ar-button" style={{
-                  background: '#FF1493',
-                  border: 'none',
-                  borderRadius: '4px',
-                  position: 'absolute',
-                  bottom: '16px',
-                  right: '16px',
-                  color: 'white',
-                  padding: '8px 16px'
-                }}>
-                  👀 View in AR
-                </button>
-              </model-viewer>
-            </div>
-
-            <div style={{ marginTop: '20px', textAlign: 'center' }}>
-              <NFTMinter 
-                glbUrl={glbUrl}
-                originalNFT={{
-                  tokenId: "123",
-                  chainId: 80002
-                }}
-                getSignedUrl={async () => {
-                  try {
-                    const response = await fetch('http://localhost:5001/api/glb/signed-url', {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                      },
-                      body: JSON.stringify({ 
-                        fileName: glbFileName 
-                      }),
-                    });
+                  <h2 className="pink-text">Your 3D Avatar</h2>
+                  <div style={{
+                    position: 'relative',
+                    width: '400px',
+                    height: '400px',
+                    margin: '0 auto',
+                    backgroundColor: '#f5f5f5',
+                    borderRadius: '12px',
+                    overflow: 'hidden',
+                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                    border: '2px solid #ff00ff',
+                    padding: '4px'
+                  }}>
+                    <div id="loading" 
+                         style={{
+                           position: 'absolute',
+                           top: '50%',
+                           left: '50%',
+                           transform: 'translate(-50%, -50%)',
+                           zIndex: 1,
+                           background: 'rgba(0,0,0,0.7)',
+                           color: 'white',
+                           padding: '10px 20px',
+                           borderRadius: '20px',
+                           display: modelViewerError ? 'none' : 'block'
+                         }}>
+                      Loading 3D Model...
+                    </div>
                     
-                    if (!response.ok) {
-                      throw new Error('Failed to get signed URL');
-                    }
-                    
-                    const data = await response.json();
-                    return data.signedUrl;
-                  } catch (error) {
-                    console.error('Error getting signed URL:', error);
-                    throw error;
-                  }
-                }}
-              />
-            </div>
-          </div>
-        ) : (
-          <div className="full-body-container">
-            <div className="full-body-header">
-              <h2 className="pink-text">Your Full Body Image</h2>
-            </div>
-            
-            <div className="full-body-image">
-              {uploadStatus === 'Processing your 3D Avatar...' ? (
-                <div className="model-container">
-                  <div className="loading">Processing...</div>
+                    {modelViewerError && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        color: 'red',
+                        background: '#ffebee',
+                        padding: '20px',
+                        borderRadius: '8px',
+                        maxWidth: '80%',
+                        textAlign: 'center'
+                      }}>
+                        Error loading model: {modelViewerError}
+                      </div>
+                    )}
+
+                    <model-viewer
+                      src={glbUrl}
+                      alt="3D Avatar"
+                      auto-rotate
+                      camera-controls
+                      camera-orbit="0deg 75deg 105%"
+                      min-camera-orbit="auto auto 50%"
+                      max-camera-orbit="auto auto 200%"
+                      camera-target="0m 1m 0m"
+                      field-of-view="30deg"
+                      environment-image="neutral"
+                      shadow-intensity="1"
+                      exposure="1"
+                      shadow-softness="1"
+                      interaction-prompt="auto"
+                      interaction-prompt-style="basic"
+                      interaction-prompt-threshold="0"
+                      auto-rotate-delay="0"
+                      rotation-per-second="30deg"
+                      min-field-of-view="25deg"
+                      max-field-of-view="45deg"
+                      interpolation-decay="200"
+                      loading="eager"
+                      reveal="auto"
+                      ar
+                      ar-modes="webxr scene-viewer quick-look"
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        backgroundColor: '#f5f5f5',
+                        '--poster-color': 'transparent',
+                        '--progress-bar-color': '#FF1493',
+                        '--progress-bar-height': '2px'
+                      }}
+                      onLoad={() => {
+                        console.log('Model loaded successfully');
+                        document.getElementById('loading').style.display = 'none';
+                      }}
+                      onError={(error) => {
+                        console.error('Model viewer error:', error);
+                        setModelViewerError(error.detail);
+                      }}
+                      onProgress={(event) => {
+                        const percent = event.detail.totalProgress * 100;
+                        const loading = document.getElementById('loading');
+                        if (loading) {
+                          loading.textContent = `Loading: ${percent.toFixed(0)}%`;
+                        }
+                      }}
+                    >
+                      <div className="progress-bar hide" slot="progress-bar">
+                        <div className="update-bar"></div>
+                      </div>
+                      <button slot="ar-button" style={{
+                        background: '#FF1493',
+                        border: 'none',
+                        borderRadius: '4px',
+                        position: 'absolute',
+                        bottom: '16px',
+                        right: '16px',
+                        color: 'white',
+                        padding: '8px 16px'
+                      }}>
+                        👀 View in AR
+                      </button>
+                    </model-viewer>
+                  </div>
+
+                  <div style={{ marginTop: '20px', textAlign: 'center' }}>
+                    <style>
+                      {`
+                        .mint-nft-button {
+                          background-color: black !important;
+                          color: #ff00ff !important;
+                          font-weight: bold !important;
+                          border: 2px solid #ff00ff !important;
+                        }
+                      `}
+                    </style>
+                    <NFTMinter 
+                      glbUrl={glbUrl}
+                      originalNFT={{
+                        tokenId: "123",
+                        chainId: 80002
+                      }}
+                      getSignedUrl={async () => {
+                        try {
+                          const response = await fetch('http://localhost:5001/api/glb/signed-url', {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ 
+                              fileName: glbFileName 
+                            }),
+                          });
+                          
+                          if (!response.ok) {
+                            throw new Error('Failed to get signed URL');
+                          }
+                          
+                          const data = await response.json();
+                          return data.signedUrl;
+                        } catch (error) {
+                          console.error('Error getting signed URL:', error);
+                          throw error;
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
               ) : (
-                <>
-                  {fullBodyImageUrl && (
-                    <div className="image-container">
-                      <img 
-                        src={fullBodyImageUrl} 
-                        alt="Full Body" 
-                        onError={(e) => {
-                          console.error('Image load error:', e);
-                          setStatusMessage('Error loading full body image');
-                        }}
-                      />
-                    </div>
-                  )}
-                  <div className="button-group">
-                    <button onClick={handleBackButton} className="nft-button">Back to NFT Selection</button>
-                    <button onClick={handleBeamIt} className="nft-button beam-button">Beam It!</button>
+                <div className="full-body-container">
+                  <div className="full-body-header">
+                    <h2 className="pink-text">Your Full Body Image</h2>
                   </div>
-                </>
+                  
+                  <div className="full-body-image">
+                    {uploadStatus === 'Processing your 3D Avatar...' ? (
+                      <div className="model-container">
+                        <div className="loading">Processing...</div>
+                      </div>
+                    ) : (
+                      <>
+                        {fullBodyImageUrl && (
+                          <div className="image-container">
+                            <img 
+                              src={fullBodyImageUrl} 
+                              alt="Full Body" 
+                              onError={(e) => {
+                                console.error('Image load error:', e);
+                                setStatusMessage('Error loading full body image');
+                              }}
+                            />
+                          </div>
+                        )}
+                        <div className="button-group">
+                          <button onClick={handleBackButton} className="nft-button">Back to NFT Selection</button>
+                          <button onClick={handleBeamIt} className="nft-button beam-button">Beam It!</button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  
+                  {uploadStatus && <p className="status-message">{uploadStatus}</p>}
+                </div>
               )}
             </div>
-            
-            {uploadStatus && <p className="status-message">{uploadStatus}</p>}
           </div>
         )}
       </div>
