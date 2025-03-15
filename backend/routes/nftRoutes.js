@@ -16,7 +16,7 @@ const storage = new Storage({
 const getAlchemyConfig = (network = 'scroll-sepolia') => {
   // Map network names to Alchemy Network enums
   const networkMap = {
-    'scroll': Network.SCROLL,
+    'scroll': Network.SCROLL_MAINNET,
     'scroll-sepolia': Network.SCROLL_SEPOLIA,
     'ethereum': Network.ETH_MAINNET,
     'sepolia': Network.ETH_SEPOLIA,
