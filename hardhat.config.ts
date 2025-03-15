@@ -143,6 +143,12 @@ const config: HardhatUserConfig = {
     scroll: {
       url: "https://rpc.scroll.io",
       accounts: [deployerPrivateKey],
+      verify: {
+        etherscan: {
+          apiUrl: "https://api.scrollscan.com",
+          apiKey: process.env.SCROLLSCAN_API_KEY || "",
+        },
+      },
     },
     pgn: {
       url: "https://rpc.publicgoods.network",
