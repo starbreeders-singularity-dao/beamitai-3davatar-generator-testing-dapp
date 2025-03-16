@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import './App.css';
 import logo from './images/beamit-ai-logo.png';
-import polygonIcon from './images/polygon.png';
 import NFTMinter from './components/NFTMinter';
 import NFTDisplay from './components/NFTDisplay';
 import '@google/model-viewer/dist/model-viewer';
@@ -401,7 +400,7 @@ function App() {
   
     try {
       console.log('=== Starting Beam It Process ===');
-      setUploadStatus('Processing your 3D Avatar...');
+      setUploadStatus('Processing might take up to 3 minutes...');
       setShowNFTGrid(false); // Hide NFT grid when starting the beam process
       const filename = fullBodyImageUrl.split('/').pop();
       const walletPrefix = account.toLowerCase().substring(2, 8);
@@ -429,7 +428,7 @@ function App() {
   
       const data = await response.json();
       console.log('Upload success:', data);
-      setUploadStatus('Processing your 3D Avatar...');
+      setUploadStatus('Processing might take up to 3 minutes...');
     } catch (error) {
       console.error('Error uploading to cloud:', error);
       setUploadStatus('Failed to beam to cloud');
@@ -457,7 +456,6 @@ function App() {
             {account ? 'Wallet Connected' : 'Connect Wallet'}
           </button>
           {account && <button onClick={disconnectWallet} className="wallet-button">Disconnect</button>}
-          <img src={polygonIcon} alt="Polygon Icon" style={{ width: '30px' }} />
         </div>
       </header>
 
@@ -567,10 +565,10 @@ function App() {
                     <p className="pink-text">Please connect your MetaMask wallet to view your NFTs.</p>
                   )}
                 </div>
-              ) : uploadStatus === 'Processing your 3D Avatar...' ? (
+              ) : uploadStatus === 'Processing might take up to 3 minutes...' ? (
                 <div className="model-container" style={{ textAlign: 'center', padding: '20px' }}>
                   <h2 className="pink-text">Processing Your 3D Avatar</h2>
-                  <div className="loading" style={{ color: '#00ffff', fontWeight: 'bold' }}>Processing...</div>
+                  <div className="loading" style={{ color: '#00ffff', fontWeight: 'bold' }}>Demo Processing...</div>
                   <p style={{ color: '#00ffff' }}>{uploadStatus}</p>
                   <div style={{ color: '#00ffff' }}>
                     <NFTDisplay walletPrefix={account ? account.toLowerCase().substring(2, 8) : null} />
@@ -634,11 +632,11 @@ function App() {
                       alt="3D Avatar"
                       auto-rotate
                       camera-controls
-                      camera-orbit="0deg 75deg 105%"
+                      camera-orbit="0deg 90deg 105%"
                       min-camera-orbit="auto auto 50%"
                       max-camera-orbit="auto auto 200%"
-                      camera-target="0m 1m 0m"
-                      field-of-view="30deg"
+                      camera-target="0m 0.5m 0m"
+                      field-of-view="22deg"
                       environment-image="neutral"
                       shadow-intensity="1"
                       exposure="1"
@@ -648,13 +646,15 @@ function App() {
                       interaction-prompt-threshold="0"
                       auto-rotate-delay="0"
                       rotation-per-second="30deg"
-                      min-field-of-view="25deg"
+                      min-field-of-view="18deg"
                       max-field-of-view="45deg"
                       interpolation-decay="200"
                       loading="eager"
                       reveal="auto"
                       ar
                       ar-modes="webxr scene-viewer quick-look"
+                      bounds="tight"
+                      skybox-image=""
                       style={{
                         width: '100%',
                         height: '100%',
@@ -747,9 +747,9 @@ function App() {
                   </div>
                   
                   <div className="full-body-image">
-                    {uploadStatus === 'Processing your 3D Avatar...' ? (
+                    {uploadStatus === 'Processing might take up to 3 minutes...' ? (
                       <div className="model-container">
-                        <div className="loading">Processing...</div>
+                        <div className="loading">Demo Processing...</div>
                       </div>
                     ) : (
                       <>

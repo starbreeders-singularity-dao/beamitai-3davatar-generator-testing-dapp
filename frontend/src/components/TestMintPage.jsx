@@ -150,7 +150,7 @@ function TestMintPage() {
               glbUrl={glbUrl}
               originalNFT={{
                 tokenId: "123",
-                chainId: 80002
+                chainId: 534352
               }}
               getSignedUrl={async () => {
                 try {

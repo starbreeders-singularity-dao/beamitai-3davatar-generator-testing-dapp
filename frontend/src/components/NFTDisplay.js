@@ -5,7 +5,7 @@ const NFTDisplay = ({ walletPrefix }) => {
     <div className="nft-display">
       <div className="loading-container">
         <div className="loading-spinner"></div>
-        <p>Processing your 3D Avatar...</p>
+        <p>Processing might take up to 3 minutes...</p>
         <p className="wallet-prefix">Wallet Prefix: {walletPrefix}</p>
       </div>
     </div>
