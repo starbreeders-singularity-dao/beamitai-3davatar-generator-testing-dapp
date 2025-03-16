@@ -1,4 +1,3 @@
-
 const express = require('express');
 const router = express.Router();
 const { Network, Alchemy } = require("alchemy-sdk");
@@ -13,22 +12,21 @@ const storage = new Storage({
 });
 
 // Alchemy SDK configuration
-const getAlchemyConfig = (network = 'scroll-sepolia') => {
-  // Map network names to Alchemy Network enums
-  const networkMap = {
-    'scroll': Network.SCROLL,
-    'scroll-sepolia': Network.SCROLL_SEPOLIA,
-    'ethereum': Network.ETH_MAINNET,
-    'sepolia': Network.ETH_SEPOLIA,
-  };
-
+const getAlchemyConfig = () => {
+  // Use the Network enum for Ethereum mainnet since Scroll is not enabled for this API key
+  console.log('Configuring Alchemy for Ethereum mainnet');
+  
+  // Debug log the API key (masked for security)
+  const apiKey = process.env.ALCHEMY_API_KEY;
+  console.log('Alchemy API Key defined:', apiKey ? `Yes (${apiKey.substring(0, 4)}...)` : 'No (undefined)');
+  
   return {
     apiKey: process.env.ALCHEMY_API_KEY,
-    network: networkMap[network] || Network.SCROLL_SEPOLIA,
+    network: Network.ETH_MAINNET  // Using Ethereum mainnet since Scroll isn't enabled for this API key
   };
 };
 
-// Initialize Alchemy SDK
+// Initialize Alchemy SDK with Ethereum mainnet explicitly
 const alchemy = new Alchemy(getAlchemyConfig());
 
 // Get NFT data from Alchemy API
@@ -66,15 +64,83 @@ router.get('/api/nfts/:walletAddress', async (req, res) => {
       return res.status(400).json({ error: 'Wallet address is required' });
     }
 
-    console.log(`Fetching NFTs for wallet: ${walletAddress}`);
+    console.log(`Fetching NFTs for wallet: ${walletAddress} on Ethereum mainnet`);
+    console.log('Using network:', Network.ETH_MAINNET);
     
-    // Get NFTs from Alchemy
-    const nftsForOwner = await alchemy.nft.getNftsForOwner(walletAddress);
-    
-    res.json(nftsForOwner);
+    try {
+      // Log the request we're making to Alchemy
+      console.log('Making request to Alchemy API with:', {
+        walletAddress,
+        network: Network.ETH_MAINNET,
+        apiKeyDefined: process.env.ALCHEMY_API_KEY ? 'Yes' : 'No'
+      });
+      
+      // Get NFTs from Alchemy with a timeout - include more parameters
+      const nftsForOwner = await Promise.race([
+        alchemy.nft.getNftsForOwner(
+          walletAddress, 
+          { 
+            pageSize: 100,
+            excludeFilters: [],  // Don't exclude anything
+            pageKey: undefined,  // Start from the beginning
+            orderBy: "transferTime"  // Order by most recently transferred
+          }
+        ),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Alchemy API timeout')), 15000))
+      ]);
+      
+      const nftCount = nftsForOwner.ownedNfts?.length || 0;
+      
+      console.log(`Found ${nftCount} NFTs for wallet on Ethereum mainnet`);
+      console.log('Response keys:', Object.keys(nftsForOwner));
+      
+      // If no NFTs were found, log a clearer message
+      if (nftCount === 0) {
+        console.log('No NFTs found for this wallet on Ethereum mainnet.');
+      } else {
+        // Log the first NFT for debugging - more complete log
+        console.log('First NFT contract:', JSON.stringify(nftsForOwner.ownedNfts[0].contract, null, 2));
+        console.log('First NFT title:', nftsForOwner.ownedNfts[0].title);
+        console.log('First NFT name:', nftsForOwner.ownedNfts[0].name);
+        console.log('First NFT tokenId:', nftsForOwner.ownedNfts[0].tokenId);
+        
+        // Check for image URLs - common issue
+        const hasImageUrl = nftsForOwner.ownedNfts[0].image?.originalUrl || 
+                           nftsForOwner.ownedNfts[0].image?.cachedUrl ||
+                           nftsForOwner.ownedNfts[0].raw?.metadata?.image;
+        console.log('First NFT has image URL:', hasImageUrl ? 'Yes' : 'No');
+        if (hasImageUrl) {
+          console.log('Image URL:', 
+            nftsForOwner.ownedNfts[0].image?.originalUrl || 
+            nftsForOwner.ownedNfts[0].image?.cachedUrl ||
+            nftsForOwner.ownedNfts[0].raw?.metadata?.image
+          );
+        }
+      }
+      
+      res.json(nftsForOwner);
+    } catch (alchemyError) {
+      console.error('Alchemy API error:', alchemyError);
+      console.error('Error details:', alchemyError.message);
+      
+      // Return a friendly error response with empty NFTs array for frontend compatibility
+      return res.json({ 
+        ownedNfts: [], 
+        totalCount: 0,
+        error: {
+          message: `Error fetching NFTs from Alchemy: ${alchemyError.message}`,
+          details: alchemyError.toString()
+        }
+      });
+    }
   } catch (error) {
     console.error('Error fetching NFTs for wallet:', error);
-    res.status(500).json({ error: 'Failed to fetch NFTs', details: error.message });
+    // Return a structured error response for better frontend handling
+    res.status(500).json({ 
+      error: 'Failed to fetch NFTs', 
+      details: error.message,
+      ownedNfts: [] 
+    });
   }
 });
 

@@ -108,6 +108,13 @@ body {
   background-color: #cc00cc; /* Darker pink */
 }
 
+.nft-button:disabled {
+  background-color: #444;
+  color: #888;
+  cursor: not-allowed;
+  border-color: #666;
+}
+
 .pink-text {
   color: #ff00ff;
 }

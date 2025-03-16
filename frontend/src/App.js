@@ -54,6 +54,7 @@ function App() {
   const [modelViewerError, setModelViewerError] = useState(null);
   const [showMintButton, setShowMintButton] = useState(false);
   const [selectedNFTName, setSelectedNFTName] = useState('');
+  // eslint-disable-next-line no-unused-vars
   const [showTestMintPage, setShowTestMintPage] = useState(false);
 
   useEffect(() => {
@@ -163,74 +164,100 @@ function App() {
   const fetchNFTs = async (walletAddress) => {
     try {
       setLoading(true);
-      setStatusMessage('Fetching your NFTs...');
+      setStatusMessage('Fetching your NFTs from Ethereum mainnet...');
       
-      // Get API key from environment, with fallback to window.env
-      const apiKey = process.env.REACT_APP_OPENSEA_API_KEY || window.env.REACT_APP_OPENSEA_API_KEY || '80771966e5a44cf7b57fc18996193e8c';
-      console.log('API Key check:', {
-        exists: !!apiKey,
-        length: apiKey?.length,
-        value: apiKey ? apiKey.substring(0, 5) + '...' : 'Missing'
-      });
+      const url = `http://localhost:5001/api/nfts/${walletAddress}`;
+      
+      console.log('Making request to the backend API for Ethereum mainnet NFTs:', url);
+      
+      const response = await fetch(url);
+      console.log('Response status:', response.status);
 
-      if (!apiKey) {
-        throw new Error('OpenSea API key is missing. Please check your .env file.');
+      // Save response text for debugging
+      const responseText = await response.text();
+      console.log('Raw API response text:', responseText.substring(0, 500) + '...');
+      
+      // Parse the response text back into JSON
+      let data;
+      try {
+        data = JSON.parse(responseText);
+        console.log('NFTs fetched from Ethereum mainnet response properties:', Object.keys(data));
+        console.log('Total NFTs returned:', data.ownedNfts?.length || 0);
+      } catch (e) {
+        console.error('Failed to parse response as JSON:', e);
+        throw new Error('Invalid JSON response from server');
       }
 
-      const chain = 'matic';
-      const url = `https://api.opensea.io/api/v2/chain/${chain}/account/${walletAddress}/nfts`;
-      
-      const headers = {
-        'X-API-KEY': apiKey,
-        'accept': 'application/json'
-      };
-      
-      console.log('Making request to:', url);
-      console.log('With headers:', {
-        ...headers,
-        'X-API-KEY': headers['X-API-KEY'] ? headers['X-API-KEY'].substring(0, 5) + '...' : 'Missing'
-      });
-      
-      const response = await fetch(url, { 
-        headers,
-        method: 'GET'
-      });
-      console.log('Response status:', response.status);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('OpenSea API error:', {
+      if (!response.ok && response.status !== 200) {
+        console.error('Backend API error:', {
           status: response.status,
           statusText: response.statusText,
-          response: errorText,
-          url,
-          headers
+          response: responseText,
+          url
         });
         throw new Error(`Failed to fetch NFTs: ${response.statusText}`);
       }
-
-      const data = await response.json();
-      console.log('NFTs fetched:', data);
       
-      if (!data.nfts || data.nfts.length === 0) {
-        setStatusMessage('No NFTs found in your wallet');
+      // Handle the case where the API returned an error but with a 200 status code
+      if (data.error) {
+        console.warn('API returned error with data:', data.error);
+        setStatusMessage(`Note: ${data.error.message || 'Error from Alchemy API'}`);
+      }
+      
+      if (!data.ownedNfts || data.ownedNfts.length === 0) {
+        setStatusMessage('No NFTs found in your wallet on Ethereum mainnet. You may need to mint or acquire NFTs first.');
         setNfts([]);
         return;
       }
       
-      // Transform IPFS URLs to use a more reliable gateway
-      const nftsWithProxiedUrls = data.nfts.map(nft => ({
-        ...nft,
-        image_url: nft.image_url?.replace('ipfs://', 'https://nftstorage.link/ipfs/')
-          .replace('https://ipfs.io/ipfs/', 'https://nftstorage.link/ipfs/')
-      }));
+      // Log the first NFT for debugging
+      if (data.ownedNfts && data.ownedNfts.length > 0) {
+        console.log('First NFT structure:', JSON.stringify(data.ownedNfts[0], null, 2).substring(0, 500) + '...');
+      }
       
-      setNfts(nftsWithProxiedUrls || []);
-      setStatusMessage(`Found ${nftsWithProxiedUrls.length} NFTs`);
+      // Transform Alchemy response format to match our UI expectations
+      const formattedNfts = data.ownedNfts.map(nft => {
+        // More extensive image URL extraction logic
+        let imageUrl = '';
+        
+        // Try multiple possible locations for the image URL
+        if (nft.image?.cachedUrl) {
+          imageUrl = nft.image.cachedUrl;
+        } else if (nft.image?.originalUrl) {
+          imageUrl = nft.image.originalUrl;
+        } else if (nft.raw?.metadata?.image) {
+          // Handle ipfs:// protocol in image URLs
+          let rawImageUrl = nft.raw.metadata.image;
+          if (rawImageUrl.startsWith('ipfs://')) {
+            rawImageUrl = rawImageUrl.replace('ipfs://', 'https://nftstorage.link/ipfs/');
+          }
+          imageUrl = rawImageUrl;
+        } else if (nft.media && nft.media[0]?.gateway) {
+          // For some Alchemy response formats
+          imageUrl = nft.media[0].gateway;
+        }
+        
+        console.log(`NFT ${nft.name || 'Unnamed'} - Image URL: ${imageUrl}`);
+                        
+        return {
+          name: nft.name || nft.title || 'Unnamed NFT',
+          image_url: imageUrl,
+          description: nft.description,
+          contract: {
+            address: nft.contract.address
+          },
+          token_id: nft.tokenId,
+          // Add fallbacks for missing data
+          has_image: !!imageUrl
+        };
+      });
+      
+      // Display all NFTs, not just those with images
+      setNfts(formattedNfts || []);
+      setStatusMessage(`Found ${formattedNfts.length} NFTs on Ethereum mainnet`);
     } catch (error) {
       console.error("Error fetching NFTs:", error);
-      setStatusMessage(`Error: ${error.message}`);
+      setStatusMessage(`Error: ${error.message}. You may not have any NFTs on Ethereum mainnet yet.`);
       setNfts([]);
     } finally {
       setLoading(false);
@@ -238,12 +265,13 @@ function App() {
   };
 
   const handleCreateAvatar = async (imageUrl, nftName) => {
-    // Transform URL to use a more reliable gateway
+    // For Alchemy responses, the imageUrl is already provided in a usable format
+    // but we'll still handle IPFS URLs just in case
     const transformedUrl = imageUrl
       .replace('ipfs://', 'https://nftstorage.link/ipfs/')
       .replace('https://ipfs.io/ipfs/', 'https://nftstorage.link/ipfs/');
       
-    console.log('Using transformed URL:', transformedUrl);
+    console.log('Using NFT image URL:', transformedUrl);
     setSelectedNFT(transformedUrl);
     setSelectedNFTName(nftName);
   };
@@ -443,9 +471,9 @@ function App() {
           marginTop: '20px'
         }}>
           {!account 
-            ? "3D Avatar Generator - Connect Your Scroll Wallet to Teleport!" 
+            ? "3D Avatar Generator - Connect Your Ethereum Wallet to Teleport!" 
             : glbStatus === 'ready' && glbUrl
-              ? "Fabulous! Now mint your NFT on scroll testnet and load it into any compatible Metaverse!"
+              ? "Fabulous! Now mint your NFT on Ethereum and load it into any compatible Metaverse!"
               : fullBodyImageUrl 
                 ? "Great! Now click Beamit! to 3D-fi your Avatar!" 
                 : "First: let's generate a FullBody Image from your PFP"}
@@ -492,15 +520,45 @@ function App() {
                           width: '190px',  // Reduced from 200px
                           flexShrink: 0
                         }}>
-                          <img src={nft.image_url} alt={nft.name} style={{ 
-                            width: '142px',  // Reduced from 150px
-                            height: '142px',  // Reduced from 150px
-                            objectFit: 'cover',
-                            borderRadius: '4px'
-                          }} />
+                          {nft.image_url ? (
+                            <img 
+                              src={nft.image_url} 
+                              alt={nft.name} 
+                              style={{ 
+                                width: '142px',  // Reduced from 150px
+                                height: '142px',  // Reduced from 150px
+                                objectFit: 'cover',
+                                borderRadius: '4px'
+                              }} 
+                              onError={(e) => {
+                                console.error(`Error loading image for NFT: ${nft.name}`, e);
+                                e.target.onerror = null;
+                                e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTQyIiBoZWlnaHQ9IjE0MiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTQyIiBoZWlnaHQ9IjE0MiIgZmlsbD0iIzMzMyIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LXNpemU9IjE0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBhbGlnbm1lbnQtYmFzZWxpbmU9Im1pZGRsZSIgZmlsbD0id2hpdGUiPk5vIGltYWdlPC90ZXh0Pjwvc3ZnPg==';
+                              }}
+                            />
+                          ) : (
+                            <div style={{ 
+                              width: '142px',
+                              height: '142px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              background: '#333',
+                              color: 'white',
+                              borderRadius: '4px',
+                              margin: '0 auto'
+                            }}>
+                              No image available
+                            </div>
+                          )}
                           <p style={{ margin: '10px 0' }}>{nft.name}</p>
-                          <button onClick={() => handleCreateAvatar(nft.image_url, nft.name)} className="nft-button">
-                            Choose PFP
+                          <button 
+                            onClick={() => handleCreateAvatar(nft.image_url || '', nft.name)} 
+                            className="nft-button"
+                            disabled={!nft.image_url}
+                            title={!nft.image_url ? "NFT has no image to convert" : ""}
+                          >
+                            {nft.image_url ? 'Choose PFP' : 'No Image Available'}
                           </button>
                         </div>
                       ))}
@@ -654,7 +712,7 @@ function App() {
                       glbUrl={glbUrl}
                       originalNFT={{
                         tokenId: "123",
-                        chainId: 80002
+                        chainId: 534352
                       }}
                       getSignedUrl={async () => {
                         try {

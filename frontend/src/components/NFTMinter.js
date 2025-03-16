@@ -40,11 +40,11 @@ const NFTMinter = ({ glbUrl, originalNFT, onBeamAnother }) => {
 
             setStatus('Checking network...');
             const chainId = await window.ethereum.request({ method: 'eth_chainId' });
-            if (chainId !== '0x13882') {
-                setStatus('Switching to Polygon Amoy...');
+            if (chainId !== '0x82750') {
+                setStatus('Switching to Scroll mainnet...');
                 await window.ethereum.request({
                     method: 'wallet_switchEthereumChain',
-                    params: [{ chainId: '0x13882' }],
+                    params: [{ chainId: '0x82750' }],
                 });
             }
 
@@ -134,12 +134,13 @@ const NFTMinter = ({ glbUrl, originalNFT, onBeamAnother }) => {
                         onClick={disconnectWallet}
                         style={{
                             padding: '10px 20px',
-                            backgroundColor: PINK_COLOR,
-                            color: 'white',
+                            backgroundColor: '#ff00ff',
+                            color: 'black',
                             border: 'none',
                             borderRadius: '5px',
                             cursor: 'pointer',
-                            minWidth: '150px'
+                            minWidth: '150px',
+                            fontWeight: 'bold'
                         }}
                     >
                         Disconnect MetaMask
@@ -148,12 +149,13 @@ const NFTMinter = ({ glbUrl, originalNFT, onBeamAnother }) => {
                         onClick={onBeamAnother}
                         style={{
                             padding: '10px 20px',
-                            backgroundColor: PINK_COLOR,
-                            color: 'white',
+                            backgroundColor: '#ff00ff',
+                            color: 'black',
                             border: 'none',
                             borderRadius: '5px',
                             cursor: 'pointer',
-                            minWidth: '150px'
+                            minWidth: '150px',
+                            fontWeight: 'bold'
                         }}
                     >
                         Beam Another Avatar
@@ -167,10 +169,19 @@ const NFTMinter = ({ glbUrl, originalNFT, onBeamAnother }) => {
                         marginTop: '10px',
                         padding: '10px',
                         borderRadius: '5px',
-                        backgroundColor: status.includes('Error') ? '#ffe6e6' : '#e6ffe6',
-                        color: status.includes('Error') ? '#cc0000' : '#006600',
+                        backgroundColor: status === 'NFT Minted Successfully! 🎉' 
+                            ? '#39FF14' 
+                            : status.includes('Error') 
+                                ? '#ffe6e6' 
+                                : '#e6ffe6',
+                        color: status === 'NFT Minted Successfully! 🎉' 
+                            ? 'black' 
+                            : status.includes('Error') 
+                                ? '#cc0000' 
+                                : '#006600',
                         maxWidth: '300px',
-                        textAlign: 'center'
+                        textAlign: 'center',
+                        fontWeight: status === 'NFT Minted Successfully! 🎉' ? 'bold' : 'normal'
                     }}
                 >
                     {status}
@@ -182,19 +193,20 @@ const NFTMinter = ({ glbUrl, originalNFT, onBeamAnother }) => {
                     marginTop: '10px',
                     padding: '10px',
                     borderRadius: '5px',
-                    backgroundColor: '#007bff',
-                    color: 'white',
+                    backgroundColor: '#00ffff',
+                    color: 'black',
                     maxWidth: '300px',
                     wordBreak: 'break-all',
-                    textAlign: 'center'
+                    textAlign: 'center',
+                    fontWeight: 'bold'
                 }}>
                     <div>Transaction Hash:</div>
                     <a 
-                        href={`https://amoy.polygonscan.com/tx/${txHash}`}
+                        href={`https://scrollscan.com/tx/${txHash}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         style={{
-                            color: 'white',
+                            color: 'black',
                             textDecoration: 'underline'
                         }}
                     >
