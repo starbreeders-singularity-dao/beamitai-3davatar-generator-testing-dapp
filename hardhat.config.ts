@@ -137,11 +137,11 @@ const config: HardhatUserConfig = {
       },
     },
     scrollSepolia: {
-      url: "https://scroll-sepolia.g.alchemy.com/v2/${providerApiKey}",
+      url: "https://scroll-sepolia.g.alchemy.com/v2/TVng2qFDiP931luG-6HpCnuvNkk8F7ye",
       accounts: [deployerPrivateKey],
     },
     scroll: {
-      url: "https://scroll-mainnet.g.alchemy.com/v2/${providerApiKey}",
+      url: "https://scroll-mainnet.g.alchemy.com/v2/TVng2qFDiP931luG-6HpCnuvNkk8F7ye",
       accounts: [deployerPrivateKey],
     },
     pgn: {
